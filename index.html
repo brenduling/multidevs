@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DaDevs Workspace</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* Dark Theme (Default) */
+            --bg-1: #0F172A; --bg-2: #1E293B;
+            --primary: #2D2A8C; --secondary: #22D3EE; --accent: #8B5CF6;
+            --text: #f8fafc; --text-muted: #94a3b8;
+            --card-bg: rgba(0,0,0,0.25); --glass-bg: rgba(255,255,255,0.05);
+            --glass-border: rgba(255,255,255,0.1); --nav-bg: rgba(15, 23, 42, 0.85);
+            --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+        }
+        
+        body.light-theme {
+            /* Light Theme Override */
+            --bg-1: #f1f5f9; --bg-2: #e2e8f0;
+            --text: #0f172a; --text-muted: #475569;
+            --card-bg: rgba(255,255,255,0.85); --glass-bg: rgba(255,255,255,0.95);
+            --glass-border: rgba(0,0,0,0.15); --nav-bg: rgba(248, 250, 252, 0.95);
+        }
+
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg-1), var(--bg-2)); color: var(--text); overflow: hidden; height: 100dvh; width: 100vw; display: flex; justify-content: center; align-items: center; transition: background 0.4s ease, color 0.4s ease; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 3px; } ::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 3px; opacity: 0.5;}
+        
+        .glass { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); transition: background 0.4s, border-color 0.4s, color 0.4s; }
+        .neon { color: var(--secondary); text-shadow: 0 0 8px var(--secondary); } body.light-theme .neon { text-shadow: none; font-weight: 900; }
+        .accent { color: var(--accent); }
+        
+        input, select, textarea { width: 100%; padding: 12px; margin: 6px 0; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); border-radius: 8px; box-sizing: border-box; outline: none; font-size: 13px; transition: 0.3s; }
+        body.light-theme input, body.light-theme select, body.light-theme textarea { background: #fff; color: #000; border-color: #cbd5e1; }
+        input:focus, select:focus, textarea:focus { border-color: var(--secondary); box-shadow: 0 0 8px rgba(34, 211, 238, 0.3); }
+        input[type="file"] { padding: 9px 12px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+        
+        button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 8px; font-size: 13px; transition: all 0.3s; }
+        button:hover { background: var(--secondary); color: #fff; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(34, 211, 238, 0.4); }
+        button.danger { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); } button.danger:hover { background: var(--danger); color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+        button.success { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: var(--success); } button.success:hover { background: var(--success); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+        
+        #app { display: none; width: 100vw; height: 100dvh; flex-direction: column; position: relative; }
+        #authScreen { padding: 40px 30px; text-align: center; width: 360px; max-width: 90%; z-index: 10; }
+        #main { flex: 1; padding: 15px; padding-bottom: 90px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; position: sticky; top:0; background: linear-gradient(180deg, var(--bg-1) 70%, transparent); z-index:50;}
+        
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; } .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .card { padding: 20px; margin-bottom: 15px; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .workspace-card { cursor: pointer; border-left: 4px solid var(--secondary); margin-bottom: 12px; background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, var(--card-bg) 100%); } .workspace-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-color: var(--accent); }
+        body.light-theme .workspace-card { background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-color: #e2e8f0; border-left-color: var(--secondary); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 99999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;} .modal-overlay.active { opacity: 1; }
+        .modal-content { background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: 16px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);} .modal-overlay.active .modal-content { transform: scale(1); }
+        
+        .branding-text { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: lowercase; text-align: center; margin-top: 15px; }
+        
+        #bottomNav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 10px 20px; z-index: 1000; background: var(--nav-bg); backdrop-filter: blur(20px); border-radius: 40px; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); overflow-x: auto; max-width: 95vw;}
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 16px; border-radius: 12px; cursor: pointer; transition: 0.2s; color: var(--text-muted); min-width: 50px;}
+        .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; transition: 0.2s; stroke: currentColor;} .nav-text { font-size: 10px; font-weight: 600; transition: 0.2s; display: none; white-space: nowrap;}
+        .nav-item:hover, .nav-item.active { background: rgba(255, 255, 255, 0.1); color: var(--secondary); transform: translateY(-4px); } .nav-item:hover svg, .nav-item.active svg { transform: scale(1.1); filter: drop-shadow(0 0 8px var(--secondary)); } .nav-item:hover .nav-text, .nav-item.active .nav-text { display: block; }
+        body.light-theme .nav-item.active { background: rgba(0,0,0,0.05); }
+
+        .avatar-wrapper { width: 45px; height: 45px; border-radius: 50%; overflow: hidden; border: 2px solid var(--glass-border); display: flex; justify-content: center; align-items: center; flex-shrink: 0; background: var(--card-bg); position: relative;} .avatar-wrapper img { width: 100%; height: 100%; object-fit: cover; } .avatar-wrapper svg { width: 60%; height: 60%; color: var(--text-muted); opacity: 0.8; margin-top: 15%;}
+        
+        .notif-bell { position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--glass-border); transition: 0.2s; }
+        .notif-bell:hover { background: rgba(255,255,255,0.1); border-color: var(--secondary); color: var(--secondary); }
+        .notif-dot { position: absolute; top: -2px; right: -2px; background: var(--danger); width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 5px var(--danger); display: none; border: 2px solid var(--bg-1);}
+        .notif-dropdown { position: absolute; top: 50px; right: 0; width: 300px; max-height: 400px; overflow-y: auto; background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; z-index: 2500; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        body.light-theme .notif-dropdown { background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+
+        .pwd-toggle { position: absolute; right: 12px; top: 18px; cursor: pointer; font-size: 16px; opacity: 0.7; transition: 0.2s; }
+        .pwd-toggle:hover { opacity: 1; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .header-top { padding-bottom: 10px; margin-bottom: 10px; }
+            #bottomNav { padding: 5px; border-radius: 0; bottom: 0; width: 100vw; max-width: 100vw; border-left: none; border-right: none; border-bottom: none; }
+            #main { padding: 10px; padding-bottom: 70px; }
+            .modal-content { padding: 20px; }
+            .notif-dropdown { position: fixed; top: 60px; right: 10px; left: 10px; width: auto; }
+            .admin-panel .flex-row { flex-direction: column; align-items: stretch; }
+            .admin-panel .flex-row > * { width: 100%; margin-bottom: 5px; }
+        }
+
+        #loadingOverlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index: 999999; display:none; justify-content:center; align-items:center; flex-direction: column; color: var(--secondary); font-weight:bold; backdrop-filter: blur(8px); }
+        .loader-spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--secondary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; } @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .timeline-table { width: 100%; border-collapse: collapse; min-width: 800px; } .timeline-table th { text-align: left; padding: 8px 10px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); white-space: nowrap; } .timeline-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; vertical-align: middle; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay"><div class="loader-spinner"></div><div id="loadingText">Synchronizing...</div></div>
+
+    <div id="customDialog" class="modal-overlay" style="z-index: 9999999;">
+        <div class="modal-content" style="width: 320px; text-align: center; padding: 30px 20px;">
+            <div id="dialogIcon" style="font-size: 40px; margin-bottom: 15px;">⚠️</div>
+            <h3 id="dialogTitle" class="neon" style="margin: 0 0 10px 0; font-size: 20px;">System Alert</h3>
+            <p id="dialogMessage" style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px; line-height: 1.5;"></p>
+            <div id="dialogButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <div id="authScreen" class="glass">
+        <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom: 10px;">
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 55px; height: 55px;">
+                <defs><linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22D3EE" /><stop offset="100%" stop-color="#8B5CF6" /></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter></defs>
+                <path d="M100 15L175 58V142L100 185L25 142V58L100 15Z" stroke="url(#neonGrad)" stroke-width="8" filter="url(#glow)"/>
+                <path d="M100 40V160" stroke="#FFF" stroke-width="12" stroke-linecap="round"/><path d="M100 40C145 40 155 70 155 100C155 130 145 160 100 160" stroke="url(#neonGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M70 100L45 75M70 100L45 125" stroke="#FFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><circle cx="45" cy="75" r="6" fill="#22D3EE"/><circle cx="45" cy="125" r="6" fill="#8B5CF6"/><circle cx="100" cy="100" r="8" fill="#FFF" filter="url(#glow)"/>
+            </svg>
+            <h1 class="neon" style="margin:0; font-size: 34px;">DaDevs <span class="accent">0.1</span></h1>
+        </div>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:30px;">Enter the ecosystem.</p>
+        
+        <div id="formLogin">
+            <input id="l_username" type="text" placeholder="Username">
+            <div style="position:relative;">
+                <input id="l_pass" type="password" placeholder="Password">
+                <span class="pwd-toggle" onclick="togglePwd('l_pass')">👁️</span>
+            </div>
+            <button onclick="login()" style="margin-top: 15px;">Access Ecosystem</button>
+            <p style="font-size: 13px; margin-top: 25px; cursor: pointer; color: var(--text-muted);" onclick="toggleAuth()">New resident? <b style="color: var(--secondary);">Initialize Profile</b></p>
+        </div>
+
+        <div id="formRegister" style="display:none;">
+            <input id="r_fullname" placeholder="Full Legal Name">
+            <input id="r_username" placeholder="Desired Username (Login ID)">
+            <div style="position:relative;">
+                <input id="r_pass" type="password" placeholder="Secure Password">
+                <span class="pwd-toggle" onclick="togglePwd('r_pass')">👁️</span>
+            </div>
+            <div style="text-align: left; margin-top: 10px; background: var(--card-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; display: block;">Biometric Data (Profile Photo)</label>
+                <input id="r_avatar" type="file" accept="image/*" style="margin: 0; padding: 0; background: transparent; border: none;">
+            </div>
+            <div style="font-size: 11px; text-align: left; margin: 15px 0; color: var(--text-muted); display: flex; align-items: center;">
+                <input type="checkbox" id="r_terms" style="width: auto; margin:0 8px 0 0; cursor: pointer;"> I agree to the <a href="#" onclick="showModal('termsModal'); return false;" style="color: var(--secondary); margin-left: 3px;">Terms and Policies</a>.
+            </div>
+            <button onclick="register()" style="margin-top: 10px;">Initialize Profile</button>
+            <p style="font-size: 13px; margin-top: 25px; cursor: pointer; color: var(--text-muted);" onclick="toggleAuth()">Already registered? <b style="color: var(--secondary);">Access Ecosystem</b></p>
+        </div>
+        <div class="branding-text" style="margin-top: 30px;">powered by brenduling</div>
+    </div>
+
+    <div id="app">
+        <div id="main">
+            <div class="header-top">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="headerAvatar" class="avatar-wrapper" style="width: 42px; height: 42px; border-color: var(--secondary); box-shadow: 0 0 10px rgba(34,211,238,0.3);"></div>
+                    <div><h2 id="viewTitle" class="neon" style="margin:0; font-size: 24px; letter-spacing: 0.5px;">Lobby</h2><span class="branding-text" style="text-align: left; margin-top: 2px; display: block;">powered by brenduling</span></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="notif-bell" onclick="toggleNotifs()">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span id="notifDot" class="notif-dot"></span>
+                        <div id="notifDropdown" class="notif-dropdown glass" onclick="event.stopPropagation()">
+                            <h4 style="margin:0 0 10px 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--secondary);">Activity Logs</h4>
+                            <div id="notifList"></div>
+                        </div>
+                    </div>
+                    <button class="success" style="width: auto; padding: 10px; margin: 0;" onclick="showModal('searchModal')">🔍 Find</button>
+                    <button class="danger" style="width: auto; padding: 10px; margin: 0;" onclick="confirmLogout()">Log Off</button>
+                </div>
+            </div>
+            <div id="contentArea"></div>
+        </div>
+        <div id="bottomNav"></div>
+    </div>
+
+    <div id="profileSettingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top: 0;">Personalization</h3>
+            <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Bio / Status</label>
+            <textarea id="p_bio" placeholder="What's on your mind?"></textarea>
+            
+            <div class="grid-2" style="margin-top: 10px;">
+                <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Sticker / Emoji</label>
+                    <input id="p_sticker" placeholder="e.g. 👾">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Interface Theme</label>
+                    <button onclick="toggleTheme()" style="background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text);">🌓 Toggle Light/Dark</button>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 10px;">
+                <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Highlight Color (Hex)</label>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="color" id="p_color_sec" style="width: 40px; padding:0; cursor:pointer; height:38px; border:none; background:none;">
+                        <input type="text" id="p_color_sec_txt" readonly style="flex:1; margin:0;" value="#22D3EE">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Accent Color (Hex)</label>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="color" id="p_color_acc" style="width: 40px; padding:0; cursor:pointer; height:38px; border:none; background:none;">
+                        <input type="text" id="p_color_acc_txt" readonly style="flex:1; margin:0;" value="#8B5CF6">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 25px;">
+                <button class="danger" onclick="hideModal('profileSettingsModal')">Cancel</button>
+                <button class="success" onclick="saveProfileSettings()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="createWsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top: 0; font-size: 24px;">Provision Workspace</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 25px;">Maximum 10 per resident.</p>
+            <input id="wsName" placeholder="Workspace Designation (Name)">
+            <div style="text-align: left; margin-top: 15px; background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; display: block;">Workspace Iconography (Photo)</label>
+                <input id="wsPhotoFile" type="file" accept="image/*" style="margin: 0; padding: 0; background: transparent; border: none;">
+            </div>
+            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Active Modules (Max 6)</h4>
+            <div id="featureList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+            <div style="display: flex; gap: 12px; margin-top: 30px;">
+                <button class="danger" onclick="hideModal('createWsModal')">Abort</button>
+                <button class="success" onclick="submitWorkspace()">Submit Request</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editWsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top: 0; font-size: 24px;">Modify Workspace</h3>
+            <input id="e_wsName" placeholder="Workspace Designation (Name)">
+            <div style="text-align: left; margin-top: 15px; background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; display: block;">Update Workspace Photo (Leave blank to keep)</label>
+                <input id="e_wsPhotoFile" type="file" accept="image/*" style="margin: 0; padding: 0; background: transparent; border: none;">
+            </div>
+            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Update Modules (Max 6)</h4>
+            <div id="e_featureList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+            <div style="display: flex; gap: 12px; margin-top: 30px;">
+                <button class="danger" onclick="hideModal('editWsModal')">Abort</button>
+                <button class="success" onclick="saveWorkspaceEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="termsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top: 0;">Terms and Policies</h3>
+            <div style="font-size: 13px; line-height: 1.6; color: var(--text); max-height: 300px; overflow-y: auto; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--glass-border);">
+                <ol style="padding-left: 15px; margin-top: 0;">
+                    <li style="margin-bottom: 10px;"><b>Zero Tolerance:</b> Hate speech, harassment, and illegal content are strictly prohibited.</li>
+                    <li style="margin-bottom: 10px;"><b>Accountability:</b> You are responsible for activities within your workspaces.</li>
+                </ol>
+            </div>
+            <button class="success" onclick="hideModal('termsModal')" style="margin-top: 20px;">Acknowledge & Close</button>
+        </div>
+    </div>
+
+    <div id="searchModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top: 0; font-size: 24px;">Global Network Search</h3>
+            <select id="searchType" onchange="document.getElementById('searchInput').placeholder = this.value === 'users' ? 'Target Username...' : 'Target Workspace ID...'" style="margin-bottom: 10px;">
+                <option value="users">Resident Query (Users)</option><option value="workspaces">Environment Query (Workspaces)</option>
+            </select>
+            <input id="searchInput" placeholder="Target Username...">
+            <button class="success" onclick="executeSearch()" style="margin-top: 10px;">Execute Query</button>
+            <div id="searchResults" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; max-height:250px; overflow-y:auto; padding-right: 5px;"></div>
+            <button class="danger" onclick="hideModal('searchModal')" style="margin-top: 20px;">Close Terminal</button>
+        </div>
+    </div>
+
+    <div id="lightboxModal" onclick="if(event.target === this) closeLightbox()">
+        <img id="lightboxImg" src="" style="max-width:90vw; max-height:80vh; object-fit:contain; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.7);">
+        <div id="lightboxCaption" style="color: #fff; margin-top: 15px; font-weight: bold;"></div>
+    </div>
+
+<script>
+    // --- DB CONFIG & GLOBALS ---
+    const db = window.supabase.createClient('https://vvjzcnsoptekxzmnfser.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2anpjbnNvcHRla3h6bW5mc2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODM5MDUsImV4cCI6MjA5MDA1OTkwNX0.14YaELHtedlKMQJNAoAtPdOXh-Czjl3MVNUAf97yAyo');
+    const CLOUD_NAME = "dsdy1e1wl"; const UPLOAD_PRESET = "dadevs_preset"; const PSEUDO_DOMAIN = "@dadevs.local";
+
+    const svgs = {
+        "User": `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`,
+        "Dashboard": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+        "Timeline": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+        "Sprint Board": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`,
+        "Calendar": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+        "Funds": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+        "Resources": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`,
+        "Gallery": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+        "Links": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`,
+        "Members": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+        "Lobby": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`
+    };
+
+    let sessionUser = null; let userProfile = null; let currentWorkspace = null; let myWorkspaces = []; let wsMembersFull = [];
+    const availableFeatures = ['Dashboard', 'Gallery', 'Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links'];
+
+    // --- UI HELPERS ---
+    const customAlert = (m, t="System Alert", i="⚠️") => { document.getElementById('dialogTitle').innerText=t; document.getElementById('dialogMessage').innerText=m; document.getElementById('dialogIcon').innerText=i; document.getElementById('dialogButtons').innerHTML=`<button class="success" onclick="closeDialog()">Acknowledge</button>`; openDialog(); };
+    const customConfirm = (m, cb, t="Confirmation", i="❓") => { document.getElementById('dialogTitle').innerText=t; document.getElementById('dialogMessage').innerText=m; document.getElementById('dialogIcon').innerText=i; document.getElementById('dialogButtons').innerHTML=`<button class="danger" onclick="closeDialog()">Abort</button><button class="success" id="cbBtn">Proceed</button>`; document.getElementById('cbBtn').onclick=()=>{closeDialog();cb();}; openDialog(); };
+    const openDialog = () => { const d = document.getElementById('customDialog'); d.style.display='flex'; setTimeout(()=>d.classList.add('active'),10); };
+    const closeDialog = () => { const d = document.getElementById('customDialog'); d.classList.remove('active'); setTimeout(()=>d.style.display='none',300); };
+    const showModal = (id) => { const m = document.getElementById(id); m.style.display='flex'; setTimeout(()=>m.classList.add('active'),10); };
+    const hideModal = (id) => { const m = document.getElementById(id); m.classList.remove('active'); setTimeout(()=>m.style.display='none',300); };
+    const showLoader = (show, text="Processing...") => { document.getElementById('loadingText').innerText=text; document.getElementById('loadingOverlay').style.display=show?'flex':'none'; };
+    
+    const toggleAuth = () => { const l=document.getElementById('formLogin'), r=document.getElementById('formRegister'); document.querySelectorAll('#authScreen input').forEach(i=>i.value=''); if(l.style.display!=='none'){l.style.display='none';r.style.display='block';}else{l.style.display='block';r.style.display='none';} };
+    const togglePwd = (id) => { const i=document.getElementById(id); i.type = i.type==='password'?'text':'password'; };
+
+    // Dynamic Color Application
+    function applyUserColors() {
+        if(userProfile.color_secondary) document.documentElement.style.setProperty('--secondary', userProfile.color_secondary);
+        if(userProfile.color_accent) document.documentElement.style.setProperty('--accent', userProfile.color_accent);
+    }
+    document.getElementById('p_color_sec').addEventListener('input', e => document.getElementById('p_color_sec_txt').value = e.target.value.toUpperCase());
+    document.getElementById('p_color_acc').addEventListener('input', e => document.getElementById('p_color_acc_txt').value = e.target.value.toUpperCase());
+    
+    async function uploadToCloudinary(file) { const fd=new FormData(); fd.append("file",file); fd.append("upload_preset",UPLOAD_PRESET); const res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`,{method:"POST",body:fd}); const data=await res.json(); if(!data.secure_url) throw new Error("Cloudinary rejected upload."); return data.secure_url; }
+    const renderHeaderAvatar = (url) => { document.getElementById('headerAvatar').innerHTML = url ? `<img src="${url}">` : svgs["User"]; };
+
+    // --- NOTIFICATIONS SYSTEM ---
+    let unreadNotifs = 0;
+    async function initNotifications() {
+        if(!sessionUser) return;
+        const { data } = await db.from('notifications').select('*').eq('user_id', sessionUser.id).order('created_at', { ascending: false }).limit(20);
+        renderNotifications(data || []);
+        
+        // Supabase Realtime Listener
+        db.channel('custom-all-channel')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${sessionUser.id}` }, payload => {
+              unreadNotifs++; updateBell();
+              const nl = document.getElementById('notifList');
+              nl.innerHTML = `<div style="padding:10px; border-bottom:1px solid var(--glass-border); font-size:12px; background: rgba(34,211,238,0.1); border-left: 3px solid var(--secondary);">${payload.new.message}</div>` + nl.innerHTML;
+          }).subscribe();
+    }
+    function renderNotifications(notifs) {
+        unreadNotifs = notifs.filter(n => !n.is_read).length; updateBell();
+        const nl = document.getElementById('notifList');
+        if(!notifs.length) nl.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center;">No recent activity.</div>`;
+        else nl.innerHTML = notifs.map(n => `<div style="padding:10px; border-bottom:1px solid var(--glass-border); font-size:12px; ${n.is_read?'opacity:0.7':'background:rgba(34,211,238,0.1); border-left: 3px solid var(--secondary);'}">${n.message}</div>`).join('');
+    }
+    function updateBell() {
+        const dot = document.getElementById('notifDot');
+        if(unreadNotifs > 0) { dot.style.display = 'block'; } else { dot.style.display = 'none'; }
+    }
+    function toggleNotifs() {
+        const d = document.getElementById('notifDropdown');
+        d.style.display = d.style.display === 'block' ? 'none' : 'block';
+        if(d.style.display === 'block' && unreadNotifs > 0) {
+            db.from('notifications').update({is_read: true}).eq('user_id', sessionUser.id).eq('is_read', false).then(()=>{ unreadNotifs = 0; updateBell(); });
+        }
+    }
+    async function pushNotif(uid, msg) { await db.from('notifications').insert([{ user_id: uid, message: msg }]); }
+
+    // --- AUTHENTICATION ---
+    async function checkSession() {
+        showLoader(true, "Verifying credentials...");
+        try {
+            const { data: { session }, error } = await db.auth.getSession();
+            if (error) throw error;
+            if (session) {
+                sessionUser = session.user;
+                const { data: profile } = await db.from('profiles').select('*').eq('id', sessionUser.id).single();
+                userProfile = profile || { username: 'NewUser', role: 'user', full_name: 'Unknown', status: 'active', sticker: '👤', color_secondary: '#22D3EE', color_accent: '#8B5CF6' };
+                if (userProfile.status === 'banned') { await db.auth.signOut(); showLoader(false); return customAlert("Account permanently suspended.", "Access Denied", "🚫"); }
+                if (userProfile.warning_message) { customAlert(userProfile.warning_message, "Super Admin Warning", "✉️"); await db.from('profiles').update({ warning_message: null }).eq('id', sessionUser.id); }
+                
+                applyUserColors(); renderHeaderAvatar(userProfile.avatar_url);
+                initNotifications();
+                
+                document.getElementById('authScreen').style.display = 'none'; document.getElementById('app').style.display = 'flex';
+                await loadLobby();
+            } else { document.getElementById('authScreen').style.display = 'block'; document.getElementById('app').style.display = 'none'; }
+        } catch (err) { document.getElementById('authScreen').style.display = 'block'; document.getElementById('app').style.display = 'none'; } finally { showLoader(false); }
+    }
+
+    async function login() {
+        const u = document.getElementById('l_username').value.trim().toLowerCase(), p = document.getElementById('l_pass').value;
+        if(!u || !p) return customAlert("Credentials required.");
+        showLoader(true, "Establishing link...");
+        try { const { error } = await db.auth.signInWithPassword({ email: `${u}${PSEUDO_DOMAIN}`, password: p }); if(error) throw error; document.getElementById('l_username').value=''; document.getElementById('l_pass').value=''; await checkSession(); } 
+        catch(err) { customAlert(err.message, "Access Denied", "🚫"); showLoader(false); }
+    }
+
+    async function register() {
+        const fn = document.getElementById('r_fullname').value.trim(), u = document.getElementById('r_username').value.trim().toLowerCase(), p = document.getElementById('r_pass').value, file = document.getElementById('r_avatar'), terms = document.getElementById('r_terms').checked;
+        if (!terms || !fn || !u || !p) return customAlert("All fields and terms agreement are mandatory.");
+        if (p.length < 6) return customAlert("Minimum 6-character password required.");
+        if (u.includes(' ') || u.includes('@')) return customAlert("Username cannot contain spaces or special characters.");
+        showLoader(true, "Provisioning account...");
+        try {
+            let avatarUrl = file.files.length ? await uploadToCloudinary(file.files[0]) : null;
+            const { data, error } = await db.auth.signUp({ email: `${u}${PSEUDO_DOMAIN}`, password: p });
+            if(error) throw error; if(data?.user?.identities?.length===0) return customAlert("Username taken.");
+            if(data.user) { await db.from('profiles').insert([{ id: data.user.id, full_name: fn, username: u, role: u==='brenduling'?'superadmin':'user', avatar_url: avatarUrl }]); customAlert("Initialization successful.", "Welcome", "✅"); toggleAuth(); }
+        } catch(err) { customAlert("Registration Error: " + err.message); } finally { showLoader(false); }
+    }
+
+    function confirmLogout() { customConfirm("Sever connection to ecosystem?", async () => { showLoader(true); await db.auth.signOut(); sessionUser=null; userProfile=null; currentWorkspace=null; checkSession(); }, "Confirm"); }
+
+    async function handleAvatarUpdate(input) {
+        if(!input.files.length) return; showLoader(true, "Updating Biometrics...");
+        try { const url = await uploadToCloudinary(input.files[0]); await db.from('profiles').update({ avatar_url: url }).eq('id', sessionUser.id); userProfile.avatar_url = url; renderHeaderAvatar(url); loadLobby(); customAlert("Photo updated.", "Success", "✅"); } 
+        catch(err) { customAlert(err.message); } finally { showLoader(false); input.value = ""; }
+    }
+
+    // --- PROFILE SETTINGS ---
+    function openProfileSettings() {
+        document.getElementById('p_bio').value = userProfile.bio || '';
+        document.getElementById('p_sticker').value = userProfile.sticker || '👤';
+        document.getElementById('p_color_sec').value = userProfile.color_secondary || '#22D3EE';
+        document.getElementById('p_color_sec_txt').value = userProfile.color_secondary || '#22D3EE';
+        document.getElementById('p_color_acc').value = userProfile.color_accent || '#8B5CF6';
+        document.getElementById('p_color_acc_txt').value = userProfile.color_accent || '#8B5CF6';
+        showModal('profileSettingsModal');
+    }
+
+    async function saveProfileSettings() {
+        showLoader(true, "Saving preferences...");
+        const bio = document.getElementById('p_bio').value, sticker = document.getElementById('p_sticker').value, sec = document.getElementById('p_color_sec').value, acc = document.getElementById('p_color_acc').value;
+        try {
+            await db.from('profiles').update({ bio, sticker, color_secondary: sec, color_accent: acc }).eq('id', sessionUser.id);
+            userProfile.bio = bio; userProfile.sticker = sticker; userProfile.color_secondary = sec; userProfile.color_accent = acc;
+            applyUserColors(); hideModal('profileSettingsModal'); loadLobby();
+        } catch(e) { customAlert(e.message); } finally { showLoader(false); }
+    }
+
+    // --- LOBBY VIEW ---
+    async function loadLobby() {
+        currentWorkspace = null; document.getElementById('viewTitle').innerText = `@${userProfile.username}`; document.getElementById('bottomNav').innerHTML = '';
+        try {
+            const { data: wm } = await db.from('workspace_members').select('workspace_id, role, status').eq('user_id', sessionUser.id);
+            myWorkspaces = [];
+            if(wm && wm.length > 0) {
+                const { data: wsData } = await db.from('workspaces').select('*').in('id', wm.map(w=>w.workspace_id));
+                myWorkspaces = wm.map(m => ({ ...m, workspaces: wsData.find(w=>w.id===m.workspace_id) })).filter(w=>w.workspaces);
+            }
+            renderLobbyUI(); populateFeatureCheckboxes('featureList');
+        } catch(err) { document.getElementById('contentArea').innerHTML = `<div class="glass card danger"><h3>Connection Failure</h3><p>${err.message}</p></div>`; }
+    }
+
+    function renderLobbyUI() {
+        let html = `<div class="grid-2"><div class="glass card" style="text-align:center; position:relative;"><h3 class="neon" style="margin-top:0;font-size:24px;">Identification</h3>`;
+        html += `<button class="icon-btn" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:var(--text); font-size:18px; padding:0; width:auto;" onclick="openProfileSettings()" title="Settings">⚙️</button>`;
+        html += `<div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;"><div style="position:relative;"><div class="avatar-wrapper" style="width:90px;height:90px;border-color:var(--secondary);">${userProfile.avatar_url ? `<img src="${userProfile.avatar_url}">` : svgs["User"]}</div><div style="position:absolute; bottom:-5px; right:-5px; font-size:24px; background:var(--bg-1); border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; border:2px solid var(--glass-border);">${userProfile.sticker||'👤'}</div></div><label style="margin-top:16px;font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics<input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)"></label></div><div style="background:var(--card-bg);padding:15px;border-radius:12px;border:1px solid var(--glass-border);"><div style="font-size:18px;font-weight:bold;">${userProfile.full_name}</div><div style="font-size:14px;color:var(--secondary);margin-top:6px;">@${userProfile.username}</div>${userProfile.bio?`<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-style:italic;">"${userProfile.bio}"</div>`:''}<div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-transform:uppercase;font-weight:bold;">Access: ${userProfile.role}</div></div><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="showModal('createWsModal')" style="flex:1;">+ Provision Workspace</button></div>${userProfile.role==='superadmin'?`<button class="success" style="margin-top:10px;" onclick="loadSuperAdmin()">👑 Super Admin Command</button>`:''}</div>`;
+        html += `<div class="glass card" style="display:flex;flex-direction:column;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 class="neon" style="margin:0;font-size:22px;">Active Environments</h3><span style="font-size:12px;color:var(--text-muted);font-weight:bold;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${myWorkspaces.length}/10</span></div><div style="flex:1;max-height:400px;overflow-y:auto;padding-right:5px;">`;
+        if(!myWorkspaces.length) html += `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:40px;">No environments detected.</p>`;
+        else myWorkspaces.forEach(ws => {
+            const w = ws.workspaces, av = w.photo_url ? `<img src="${w.photo_url}">` : w.name.charAt(0).toUpperCase();
+            if(w.status === 'pending') html += `<div class="workspace-card card glass" style="border-color:#f59e0b;display:flex;gap:15px;opacity:0.7;"><div class="avatar-wrapper" style="border-color:#f59e0b;">${av}</div><div><div style="font-weight:bold;font-size:15px;">${w.name}</div><div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-top:4px;">⏳ Pending Authorization</div></div></div>`;
+            else if(ws.status === 'pending_invite') html += `<div class="workspace-card card glass" id="inv_${w.id}" style="border-color:var(--secondary);"><div style="display:flex;gap:12px;margin-bottom:15px;"><div class="avatar-wrapper">${av}</div><div><div style="font-weight:bold;font-size:15px;">${w.name}</div><div style="font-size:11px;color:var(--secondary);margin-top:4px;">Incoming Transfer Request</div></div></div><div style="display:flex;gap:10px;"><button class="success" onclick="respondInvite('${w.id}','active')">Accept</button><button class="danger" onclick="respondInvite('${w.id}','declined')">Deny</button></div></div>`;
+            else html += `<div class="workspace-card card glass" onclick="enterWorkspace('${w.id}')" style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;gap:15px;"><div class="avatar-wrapper">${av}</div><div><div style="font-size:16px;font-weight:bold;">${w.name}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Clearance: <span style="color:var(--secondary);font-weight:bold;">${ws.role.toUpperCase()}</span></div></div></div><div style="color:var(--secondary);opacity:0.5;">➔</div></div>`;
+        });
+        document.getElementById('contentArea').innerHTML = html + `</div></div></div>`;
+    }
+
+    function populateFeatureCheckboxes(containerId = 'featureList') { 
+        document.getElementById(containerId).innerHTML = availableFeatures.map(f=>`<label class="feature-toggle"><input type="checkbox" value="${f}" class="ws-feature-cb" onchange="limitFeatures(this)"> <span style="display:flex;align-items:center;gap:8px;font-size:14px;"><span style="width:18px;height:18px;color:var(--secondary);">${svgs[f]||'⚡'}</span> ${f}</span></label>`).join(''); 
+    }
+    function limitFeatures(cb) { if(cb.closest('.modal-content').querySelectorAll('.ws-feature-cb:checked').length > 6) { customAlert("Max 6 active modules."); cb.checked=false; } }
+
+    async function submitWorkspace() {
+        if(myWorkspaces.length >= 10) return customAlert("Environment limit reached (10).");
+        const n = document.getElementById('wsName').value.trim(), f = Array.from(document.getElementById('createWsModal').querySelectorAll('.ws-feature-cb:checked')).map(cb=>cb.value), file = document.getElementById('wsPhotoFile');
+        if(!n || !f.length) return customAlert("Designation and at least 1 module required.");
+        showLoader(true, "Allocating Server Space...");
+        try {
+            const url = file.files.length ? await uploadToCloudinary(file.files[0]) : null;
+            const id = n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase() + '-' + Math.random().toString(36).substring(2,6);
+            await db.from('workspaces').insert([{ id, name: n, photo_url: url, features: f, status: 'pending', created_by: sessionUser.id }]);
+            await db.from('workspace_members').insert([{ workspace_id: id, user_id: sessionUser.id, role: 'admin', status: 'active', display_role: 'Creator' }]);
+            customAlert("Environment provisioned. Awaiting authorization.", "Success", "✅"); hideModal('createWsModal'); loadLobby();
+        } catch(err) { customAlert(err.message); } finally { showLoader(false); }
+    }
+
+    // --- WORKSPACE INNER ARCHITECTURE ---
+    let currentModule = '';
+    const buildNav = (l,i) => `<div class="nav-item ${l===currentModule?'active':''}" onclick="renderModule('${l}')">${svgs[i]||'⚡'}<span class="nav-text">${l}</span></div>`;
+    const fetchWSData = async (table) => { const {data,error} = await db.from(table).select('*').eq('workspace_id', currentWorkspace.workspace_id); if(error) throw error; return data||[]; };
+    const isAdmin = () => currentWorkspace.role === 'admin' || userProfile.role === 'superadmin';
+
+    async function enterWorkspace(wsId) {
+        currentWorkspace = myWorkspaces.find(w=>w.workspace_id===wsId);
+        if(!currentWorkspace) return; document.getElementById('viewTitle').innerText = currentWorkspace.workspaces.name;
+        
+        const {data:mems} = await db.from('workspace_members').select('user_id, role, status, display_role').eq('workspace_id', wsId);
+        const {data:profs} = await db.from('profiles').select('id, full_name, username, avatar_url, sticker').in('id', mems.map(m=>m.user_id));
+        wsMembersFull = mems.map(m=>({ ...m, profile: profs.find(p=>p.id===m.user_id) })).filter(m=>m.profile);
+        
+        renderModule(currentWorkspace.workspaces.features[0] || 'Members');
+    }
+
+    function renderModule(mod) {
+        currentModule = mod; if(mod==='Lobby') return loadLobby();
+        document.getElementById('bottomNav').innerHTML = buildNav('Lobby','Lobby') + currentWorkspace.workspaces.features.map(f=>buildNav(f,f)).join('') + buildNav('Members','Members');
+        const c = document.getElementById('contentArea'); c.innerHTML = '';
+        
+        let headerActions = '';
+        if (isAdmin() && mod === currentWorkspace.workspaces.features[0]) {
+            headerActions = `<button class="icon-btn" onclick="openEditWorkspace()" style="background:transparent; border:1px solid var(--glass-border); color:var(--text); padding:6px 12px; border-radius:6px; font-size:11px; width:auto; margin:0;">⚙️ Edit Environment</button>`;
+        }
+
+        switch(mod) {
+            case 'Members': return modMembers(c); case 'Dashboard': return modDash(c, headerActions); case 'Sprint Board': return modSprint(c); 
+            case 'Timeline': return modTimeline(c); case 'Funds': return modFunds(c); case 'Calendar': return modCalendar(c); 
+            case 'Resources': return modResources(c); case 'Gallery': return modGallery(c);
+            default: c.innerHTML=`<div class="glass card" style="text-align:center;padding:50px;"><h2 class="neon">${mod}</h2><p>Module Online</p></div>`;
+        }
+    }
+
+    function openEditWorkspace() {
+        document.getElementById('e_wsName').value = currentWorkspace.workspaces.name;
+        populateFeatureCheckboxes('e_featureList');
+        const cbs = document.getElementById('editWsModal').querySelectorAll('.ws-feature-cb');
+        cbs.forEach(cb => { if(currentWorkspace.workspaces.features.includes(cb.value)) cb.checked = true; });
+        showModal('editWsModal');
+    }
+
+    async function saveWorkspaceEdit() {
+        const n = document.getElementById('e_wsName').value.trim();
+        const f = Array.from(document.getElementById('editWsModal').querySelectorAll('.ws-feature-cb:checked')).map(cb=>cb.value);
+        const file = document.getElementById('e_wsPhotoFile');
+        if(!n || !f.length) return customAlert("Name and at least 1 module required.");
+        
+        showLoader(true, "Updating Architecture...");
+        try {
+            let updates = { name: n, features: f };
+            if(file.files.length) updates.photo_url = await uploadToCloudinary(file.files[0]);
+            await db.from('workspaces').update(updates).eq('id', currentWorkspace.workspace_id);
+            currentWorkspace.workspaces.name = n; currentWorkspace.workspaces.features = f;
+            if(updates.photo_url) currentWorkspace.workspaces.photo_url = updates.photo_url;
+            hideModal('editWsModal'); enterWorkspace(currentWorkspace.workspace_id);
+        } catch(e) { customAlert(e.message); } finally { showLoader(false); }
+    }
+
+    // --- MODULE: MEMBERS ---
+    function modMembers(c) {
+        const active = wsMembersFull.filter(m => m.status === 'active');
+        const pending = wsMembersFull.filter(m => m.status === 'pending_invite');
+
+        let html = `<div class="glass card"><h3 class="neon" style="margin-top:0;">Environment Personnel</h3>`;
+        active.forEach(m => {
+            html += `<div style="display:flex;justify-content:space-between;padding:15px;border-bottom:1px solid var(--glass-border);background:var(--card-bg);margin-bottom:10px;border-radius:12px; flex-wrap:wrap; gap:10px;"><div style="display:flex;align-items:center;gap:15px;"><div class="avatar-wrapper" style="width:40px;height:40px; position:relative;">${m.profile.avatar_url?`<img src="${m.profile.avatar_url}">`:svgs["User"]}<div style="position:absolute; bottom:-2px; right:-2px; font-size:10px; background:var(--bg-1); border-radius:50%; border:1px solid var(--glass-border); padding:1px;">${m.profile.sticker||'👤'}</div></div><div><div style="font-weight:bold;font-size:15px;">${m.profile.full_name}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">@${m.profile.username}</div></div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">`;
+            
+            if(isAdmin() && m.user_id !== sessionUser.id) {
+                html += `<input type="text" value="${m.display_role}" onchange="updDispRole('${m.user_id}', this.value)" style="width:120px; padding:6px; font-size:11px; margin:0;" placeholder="Custom Role Title">`;
+                html += `<select onchange="updRole('${m.user_id}',this.value)" style="width:auto;padding:6px;font-size:11px;margin:0;"><option value="member" ${m.role==='member'?'selected':''}>Member (Sys)</option><option value="admin" ${m.role==='admin'?'selected':''}>Admin (Sys)</option></select><button class="danger" style="width:auto; padding:6px 10px; margin:0;" onclick="kickUser('${m.user_id}')">✖</button>`;
+            } else {
+                html += `<div style="font-size:11px;color:var(--secondary);font-weight:bold;padding:6px 10px;border:1px solid var(--glass-border);border-radius:6px;background:rgba(34,211,238,0.1);">${m.display_role} (${m.role})</div>`;
+            }
+            html += `</div></div>`;
+        });
+        
+        if (isAdmin()) {
+            if(pending.length > 0) {
+                html += `<h4 style="color:var(--warning); margin-top:20px;">Pending Invites</h4>`;
+                pending.forEach(p => {
+                    html += `<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);margin-bottom:5px;border-radius:8px;border:1px dashed var(--warning);opacity:0.7;"><div><b>@${p.profile.username}</b></div><button class="danger" style="width:auto;padding:4px 8px;margin:0;" onclick="cancelInvite('${p.user_id}')">Cancel</button></div>`;
+                });
+            }
+            html += `<button class="success" style="margin-top:20px;" onclick="showModal('searchModal')">+ Invite Personnel</button>`;
+        } else { html += `<button class="danger" style="margin-top:20px;" onclick="customAlert('Leave functionality currently restricted by protocol.')">Request Reassignment</button>`; }
+        
+        c.innerHTML = html + `</div>`;
+    }
+    async function updRole(uid, role) { showLoader(true); await db.from('workspace_members').update({role}).eq('workspace_id', currentWorkspace.workspace_id).eq('user_id', uid); enterWorkspace(currentWorkspace.workspace_id); showLoader(false); }
+    async function updDispRole(uid, d_role) { showLoader(true); await db.from('workspace_members').update({display_role: d_role}).eq('workspace_id', currentWorkspace.workspace_id).eq('user_id', uid); enterWorkspace(currentWorkspace.workspace_id); showLoader(false); }
+    async function kickUser(uid) { customConfirm("Remove user from environment?", async ()=>{ showLoader(true); await db.from('workspace_members').delete().eq('workspace_id', currentWorkspace.workspace_id).eq('user_id', uid); pushNotif(uid, `You were removed from ${currentWorkspace.workspaces.name}`); enterWorkspace(currentWorkspace.workspace_id); showLoader(false);}); }
+    async function cancelInvite(uid) { showLoader(true); await db.from('workspace_members').delete().eq('workspace_id', currentWorkspace.workspace_id).eq('user_id', uid); enterWorkspace(currentWorkspace.workspace_id); showLoader(false); }
+
+    // --- MODULE: DASHBOARD ---
+    async function modDash(c, headerActions) {
+        showLoader(true); const [sprints, funds, gal] = await Promise.all([fetchWSData('sprints'), fetchWSData('funds'), fetchWSData('gallery')]); showLoader(false);
+        const doneS = sprints.filter(s=>s.status==='Done').length, totF = funds.reduce((a,f)=>f.type==='in'?a+Number(f.amount):a-Number(f.amount),0), feat = gal.filter(g=>g.featured);
+        let h = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3 style="margin:0; color:var(--secondary);">Environment Overview</h3>${headerActions}</div>`;
+        h += `<div class="grid-2"><div class="glass card"><h3 class="neon" style="margin-top:0;">Sprint Progress</h3><div style="background:rgba(255,255,255,0.1);border-radius:10px;height:10px;margin-top:15px;"><div style="width:${sprints.length?(doneS/sprints.length)*100:0}%;background:var(--secondary);height:100%;box-shadow:0 0 10px var(--secondary);"></div></div><p style="margin-top:10px;font-size:14px;color:var(--text-muted);">${doneS} of ${sprints.length} Completed</p></div><div class="glass card"><h3 class="neon" style="margin-top:0;">Financial Overview</h3><h2 style="margin:10px 0;font-size:32px;">₱${totF.toLocaleString()}</h2><p style="font-size:14px;color:var(--text-muted);margin:0;">Available Balance</p></div></div><h3 style="margin-top:20px;color:var(--secondary);">Featured Showcase</h3>`;
+        if(!feat.length) h+=`<div class="glass card" style="text-align:center;color:var(--text-muted);">No featured assets.</div>`;
+        else h+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">${feat.map(g=>`<div style="border-radius:10px;overflow:hidden;aspect-ratio:1;border:1px solid var(--glass-border);"><img src="${g.url}" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>`;
+        c.innerHTML = h;
+    }
+
+    // --- MODULE: SPRINT BOARD ---
+    async function modSprint(c) {
+        showLoader(true); const sprints = await fetchWSData('sprints'); showLoader(false);
+        let h = isAdmin() ? `<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--secondary);">Create Sprint</h4><div class="flex-row"><input id="smN" placeholder="Name" style="flex:2;"><input id="smW" type="number" placeholder="Weeks" style="flex:1;"><input id="smP" placeholder="Phase" style="flex:2;"></div><div class="flex-row"><textarea id="smO" placeholder="Objectives" style="flex:1;height:40px;"></textarea><textarea id="smD" placeholder="Deliverables" style="flex:1;height:40px;"></textarea><button onclick="addSprint()" style="flex:0.5;margin:0;">Create</button></div></div>` : '';
+        h += `<div style="display:flex;gap:15px;overflow-x:auto;padding-bottom:15px;scroll-snap-type:x mandatory;">`;
+        ["To Do", "In Progress", "Review", "Done"].forEach(col => {
+            const colS = sprints.filter(s=>s.status===col);
+            h += `<div style="flex:1;min-width:280px;background:var(--card-bg);border-radius:10px;padding:12px;border:1px solid var(--glass-border);scroll-snap-align:center;"><h3>${col} <span style="float:right;font-size:12px;color:var(--secondary);">${colS.length}</span></h3><div style="display:flex;flex-direction:column;gap:10px;">`;
+            if(!colS.length) h+=`<p style="color:var(--text-muted);text-align:center;font-size:12px;">Empty</p>`;
+            colS.forEach(s => {
+                h+=`<div style="background:var(--glass-bg);padding:15px;border-radius:8px;border:1px solid var(--glass-border);position:relative;">`;
+                if(isAdmin()) h+=`<button class="danger" style="position:absolute;top:5px;right:5px;width:auto;padding:2px 6px;margin:0;font-size:10px;" onclick="delDB('sprints','${s.id}','Sprint Board')">✖</button>`;
+                h+=`<div style="font-weight:bold;color:var(--secondary);margin-bottom:5px;padding-right:20px;">${s.name}</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Phase: ${s.phase} &bull; ${s.weeks} Wks</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;margin-bottom:5px;"><b>Obj:</b> ${s.objectives}</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;"><b>Del:</b> ${s.deliverables}</div>`;
+                if(isAdmin()) h+=`<select onchange="updDB('sprints','${s.id}',{status:this.value},'Sprint Board')" style="margin-top:10px;padding:8px;"><option disabled selected>Move to...</option><option value="To Do">To Do</option><option value="In Progress">In Progress</option><option value="Review">Review</option><option value="Done">Done</option></select>`;
+                h+=`</div>`;
+            });
+            h+=`</div></div>`;
+        });
+        c.innerHTML = h + `</div>`;
+    }
+    window.addSprint = async () => { const n=document.getElementById('smN').value, w=document.getElementById('smW').value, p=document.getElementById('smP').value, o=document.getElementById('smO').value, d=document.getElementById('smD').value; if(!n) return customAlert("Name required"); showLoader(true); await db.from('sprints').insert([{workspace_id:currentWorkspace.workspace_id, name:n, weeks:w||1, phase:p||'None', objectives:o||'TBD', deliverables:d||'TBD'}]); showLoader(false); renderModule('Sprint Board'); };
+    window.updDB = async (t, id, updates, mod) => { showLoader(true); await db.from(t).update(updates).eq('id',id); renderModule(mod); };
+
+    // --- MODULE: TIMELINE ---
+    async function modTimeline(c) {
+        showLoader(true); const tl = await fetchWSData('timeline'); showLoader(false);
+        const memOpts = wsMembersFull.map(m=>`<option value="${m.profile.id}">${m.profile.full_name}</option>`).join('');
+        let h = isAdmin() ? `<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--accent);">Add Task</h4><div class="flex-row"><input id="tlP" placeholder="Phase" style="flex:1;"><input id="tlT" placeholder="Task Name" style="flex:2;"><select id="tlO" style="flex:1;"><option value="">Team (Unassigned)</option>${memOpts}</select><input id="tlProg" type="number" placeholder="Prog %" style="flex:1;"></div><div class="flex-row"><input id="tlS" type="date" title="Start" style="flex:1;"><input id="tlD" type="date" title="Scheduled" style="flex:1;"><input id="tlE" type="date" title="Actual End" style="flex:1;"><button onclick="addTL()" style="flex:1;margin:0;">Add Task</button></div></div>` : '';
+        h += `<div class="glass card" style="overflow-x:auto;"><h3 style="margin-top:0;">Gantt Schedule</h3>`;
+        if(!tl.length) h+=`<p style="color:var(--text-muted);">No tasks.</p>`;
+        else {
+            const dates = tl.flatMap(t=>[new Date(t.start_date).getTime(), new Date(t.sched_date).getTime(), t.end_date?new Date(t.end_date).getTime():null]).filter(Boolean);
+            const min = Math.min(...dates), span = Math.max(86400000, Math.max(...dates) - min) * 1.05;
+            h += `<table class="timeline-table"><tr><th>Task</th><th>Owner</th><th>Start</th><th>Sched</th><th>End</th><th>Prog</th><th>Gantt</th>${isAdmin()?'<th>Act</th>':''}</tr>`;
+            tl.forEach(t => {
+                const sT = new Date(t.start_date).getTime(), scT = new Date(t.sched_date).getTime(), eT = t.end_date?new Date(t.end_date).getTime():scT;
+                const lP = ((sT-min)/span)*100, wP = Math.max(2, ((eT-sT)/span)*100), scP = ((scT-min)/span)*100;
+                const done = t.progress === 100, late = done && eT>scT, col = done ? (late?'#ef4444':'#10b981') : 'var(--primary)';
+                const ownerName = t.owner ? (wsMembersFull.find(m=>m.user_id===t.owner)?.profile.full_name || 'Unknown') : 'Team';
+                h+=`<tr><td style="font-weight:bold;">${t.title}</td><td style="color:var(--secondary);">${ownerName}</td><td>${t.start_date||'--'}</td><td>${t.sched_date||'--'}</td><td style="color:${col};">${t.end_date||'--'}</td><td>${t.progress}%</td><td><div class="gantt-track"><div style="position:absolute;left:${lP}%;width:${wP}%;background:${col};height:100%;opacity:0.8;"></div><div style="position:absolute;left:${scP}%;width:2px;background:var(--accent);height:100%;z-index:2;"></div></div></td>${isAdmin()?`<td><button class="danger" style="padding:4px 8px;margin:0;width:auto;font-size:10px;" onclick="delDB('timeline','${t.id}','Timeline')">✖</button></td>`:''}</tr>`;
+            });
+            h+=`</table>`;
+        }
+        c.innerHTML = h + `</div>`;
+    }
+    window.addTL = async () => { const p=document.getElementById('tlP').value||'Phase 1', t=document.getElementById('tlT').value, o=document.getElementById('tlO').value, pr=document.getElementById('tlProg').value||0, s=document.getElementById('tlS').value, d=document.getElementById('tlD').value, e=document.getElementById('tlE').value; if(!t||!s||!d) return customAlert("Title, Start, and Sched required."); showLoader(true); await db.from('timeline').insert([{workspace_id:currentWorkspace.workspace_id, phase:p, title:t, owner:o||null, progress:pr, start_date:s, sched_date:d, end_date:e||null}]); if(o) pushNotif(o, `You were assigned a task in ${currentWorkspace.workspaces.name}: ${t}`); showLoader(false); renderModule('Timeline'); };
+
+    // --- MODULE: FUNDS ---
+    async function modFunds(c) {
+        showLoader(true); const funds = await fetchWSData('funds'); showLoader(false);
+        let t=0, i=0, e=0; funds.forEach(f=>{ if(f.type==='in'){t+=Number(f.amount);i+=Number(f.amount);}else{t-=Number(f.amount);e+=Number(f.amount);} });
+        const memOpts = wsMembersFull.map(m=>`<option value="${m.profile.id}">${m.profile.full_name}</option>`).join('');
+        let h = `<div class="grid-3" style="margin-bottom:15px;"><div class="glass card" style="text-align:center;padding:15px;margin:0;"><h3 style="color:var(--text-muted);margin:0;font-size:11px;text-transform:uppercase;">Balance</h3><h2 class="neon" style="margin:5px 0;">₱${t}</h2></div><div class="glass card" style="text-align:center;padding:15px;margin:0;"><h3 style="color:var(--success);margin:0;font-size:11px;text-transform:uppercase;">Income</h3><h2 style="margin:5px 0;">₱${i}</h2></div><div class="glass card" style="text-align:center;padding:15px;margin:0;"><h3 style="color:var(--danger);margin:0;font-size:11px;text-transform:uppercase;">Expenses</h3><h2 style="margin:5px 0;">₱${e}</h2></div></div>`;
+        if(isAdmin()) h+=`<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--accent)">Record Transaction</h4><div class="flex-row"><select id="fT" style="flex:1;"><option value="in">Income (+)</option><option value="out">Expense (-)</option></select><input id="fD" type="date" style="flex:1;"><select id="fC" style="flex:2;"><option value="" disabled selected>Contributor...</option><option value="other">Other/Misc</option>${memOpts}</select><input id="fDesc" placeholder="Description" style="flex:2;"><input id="fA" type="number" placeholder="Amt ₱" style="flex:1;"><button onclick="addFund()" style="flex:1;margin:0;">Record</button></div></div>`;
+        h+=`<div class="grid-2"><div class="glass card"><h3>Ledger</h3><div style="max-height:300px;overflow-y:auto;padding-right:5px;">`;
+        if(!funds.length) h+=`<p style="color:var(--text-muted);font-size:12px;">No transactions.</p>`;
+        funds.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(f=>{
+            const isI = f.type==='in', cName = f.contributor_id ? (wsMembersFull.find(m=>m.user_id===f.contributor_id)?.profile.full_name || 'Unknown') : 'Misc';
+            h+=`<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;"><div><div style="font-weight:bold;font-size:14px;">${isI?cName:f.description}</div><div style="font-size:10px;color:var(--text-muted);">${f.date}</div></div><div style="display:flex;align-items:center;gap:10px;"><div style="font-weight:bold;color:${isI?'var(--success)':'var(--danger)'};">${isI?'+':'-'}₱${f.amount}</div>${isAdmin()?`<button class="danger" style="padding:4px 8px;margin:0;width:auto;" onclick="delDB('funds','${f.id}','Funds')">✖</button>`:''}</div></div>`;
+        });
+        c.innerHTML = h + `</div></div></div>`;
+    }
+    window.addFund = async () => { const t=document.getElementById('fT').value, d=document.getElementById('fD').value, c=document.getElementById('fC').value, desc=document.getElementById('fDesc').value, a=document.getElementById('fA').value; if(!d || !a) return customAlert("Date and Amount required."); showLoader(true); await db.from('funds').insert([{workspace_id:currentWorkspace.workspace_id, type:t, date:d, contributor_id:c==='other'||!c?null:c, description:desc||(t==='in'?'Contribution':'Expense'), amount:a}]); showLoader(false); renderModule('Funds'); };
+
+    // --- MODULE: CALENDAR ---
+    async function modCalendar(c) {
+        showLoader(true); const [cal, tl] = await Promise.all([fetchWSData('calendar'), fetchWSData('timeline')]); showLoader(false);
+        let h = isAdmin() ? `<div class="glass admin-panel"><div class="flex-row"><input id="ceT" placeholder="Event Title" style="flex:2;"><input id="ceD" type="date" style="flex:1;"><select id="ceTy" style="flex:1;"><option value="meeting">Meeting</option><option value="defense">Defense</option><option value="other">Other</option></select><button onclick="addCal()" style="flex:1;margin:0;">Schedule</button></div></div>` : '';
+        h+=`<div class="grid-2"><div class="glass card"><h3 class="neon" style="margin-top:0;">Upcoming</h3><div style="max-height:300px;overflow-y:auto;padding-right:5px;">`;
+        let evs = [...cal]; tl.forEach(t=>{if(t.sched_date) evs.push({id:t.id, title:`Due: ${t.title}`, date:t.sched_date, type:'task'});});
+        evs.sort((a,b)=>new Date(a.date)-new Date(b.date));
+        if(!evs.length) h+=`<p style="color:var(--text-muted);font-size:12px;">No events.</p>`;
+        evs.forEach(e=>{ h+=`<div style="padding:12px;background:var(--card-bg);border-left:4px solid ${e.type==='task'?'var(--secondary)':(e.type==='defense'?'var(--danger)':'var(--accent)')};margin-bottom:8px;border-radius:6px;display:flex;justify-content:space-between;"><div style="font-size:13px;"><b>${e.title}</b><br><span style="font-size:10px;color:var(--text-muted);">${e.date}</span></div>${isAdmin()&&e.type!=='task'?`<button class="danger" style="width:auto;padding:4px 8px;margin:0;" onclick="delDB('calendar','${e.id}','Calendar')">✖</button>`:''}</div>`; });
+        c.innerHTML = h + `</div></div></div>`;
+    }
+    window.addCal = async () => { const t=document.getElementById('ceT').value, d=document.getElementById('ceD').value, ty=document.getElementById('ceTy').value; if(!t||!d) return; showLoader(true); await db.from('calendar').insert([{workspace_id:currentWorkspace.workspace_id, title:t, date:d, type:ty}]); showLoader(false); renderModule('Calendar'); };
+
+    // --- MODULE: RESOURCES ---
+    async function modResources(c) {
+        showLoader(true); const res = await fetchWSData('resources'); showLoader(false);
+        let h = isAdmin() ? `<div class="glass admin-panel"><div class="flex-row"><input id="rT" placeholder="Title" style="flex:2;"><select id="rTy" style="flex:1;" onchange="document.getElementById('rU').style.display=this.value==='link'?'block':'none';document.getElementById('rF').style.display=this.value==='file'?'block':'none';"><option value="link">Web Link</option><option value="file">Upload File</option></select><input id="rU" placeholder="URL" style="flex:2;"><input id="rF" type="file" style="flex:2;display:none;padding:9px;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button onclick="addRes()" style="flex:1;margin:0;">Add</button></div></div>` : '';
+        h += `<div class="glass card"><h3 class="neon" style="margin-top:0;">Database</h3><div style="display:flex;flex-direction:column;gap:8px;">`;
+        if(!res.length) h+=`<p style="color:var(--text-muted);">No resources.</p>`;
+        res.sort((a,b)=>b.pinned-a.pinned).forEach(r=>{
+            h+=`<div style="display:flex;justify-content:space-between;padding:12px;background:var(--card-bg);border:1px solid ${r.pinned?'var(--warning)':'var(--glass-border)'};border-radius:8px;align-items:center;"><div><div style="font-weight:bold;font-size:14px;color:var(--text);">${r.pinned?'📌 ':''}${r.title}</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${r.type.toUpperCase()}</div></div><div style="display:flex;gap:8px;">${r.type==='file'?`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Download</button>`:`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Open</button>`}${isAdmin()?`<button class="danger" style="width:auto;padding:6px 12px;margin:0;" onclick="delDB('resources','${r.id}','Resources')">✖</button>`:''}</div></div>`;
+        });
+        c.innerHTML = h + `</div></div>`;
+    }
+    window.addRes = async () => { const t=document.getElementById('rT').value, ty=document.getElementById('rTy').value, u=document.getElementById('rU').value, f=document.getElementById('rF'); if(!t) return customAlert("Title required."); showLoader(true); try{ let url=u, fn=null; if(ty==='file'){ if(!f.files.length) throw new Error("Select a file."); url = await uploadToCloudinary(f.files[0]); fn=f.files[0].name; } await db.from('resources').insert([{workspace_id:currentWorkspace.workspace_id, title:t, type:ty, url, file_name:fn}]); renderModule('Resources'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
+
+    // --- MODULE: GALLERY ---
+    async function modGallery(c) {
+        showLoader(true); const gal = await fetchWSData('gallery'); showLoader(false);
+        let h = isAdmin() ? `<div class="glass admin-panel"><div class="flex-row"><input id="gC" placeholder="Caption" style="flex:1;"><input id="gF" type="file" accept="image/*" multiple style="flex:1;padding:9px;"><button onclick="addGal()" style="flex:0.5;margin:0;">Upload</button></div></div>` : '';
+        h += `<div class="glass card"><h3 class="neon" style="margin-top:0;">Visual Assets</h3><div class="gallery-grid">`;
+        if(!gal.length) h+=`<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;">Empty gallery.</p>`;
+        gal.forEach(g=>{
+            h+=`<div class="gallery-item" onclick="openLightbox('${g.url}','${g.caption}')"><img src="${g.url}"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);padding:8px;font-size:10px;color:#fff;">${g.caption}</div>${isAdmin()?`<button class="danger" style="position:absolute;top:5px;right:5px;width:auto;padding:2px 6px;margin:0;font-size:9px;" onclick="event.stopPropagation();delDB('gallery','${g.id}','Gallery')">✖</button>`:''}</div>`;
+        });
+        c.innerHTML = h + `</div></div>`;
+    }
+    window.addGal = async () => { const c=document.getElementById('gC').value||'Untitled', f=document.getElementById('gF'); if(!f.files.length) return; showLoader(true); try{ for(let i=0;i<f.files.length;i++){ const u = await uploadToCloudinary(f.files[i]); await db.from('gallery').insert([{workspace_id:currentWorkspace.workspace_id, url:u, caption:f.files.length>1?`${c} (${i+1})`:c}]); } renderModule('Gallery'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
+    window.openLightbox = (u,c) => { document.getElementById('lightboxImg').src=u; document.getElementById('lightboxCaption').innerText=c; document.getElementById('lightboxModal').style.display='flex'; };
+    window.closeLightbox = () => { document.getElementById('lightboxModal').style.display='none'; document.getElementById('lightboxImg').src=''; };
+
+    // --- SEARCH / SUPER ADMIN ---
+    async function loadSuperAdmin() {
+        showLoader(true);
+        const {data:ws} = await db.from('workspaces').select('*').eq('status','pending'); const {data:us} = await db.from('profiles').select('*');
+        let h=`<button onclick="loadLobby()" style="width:auto;margin-bottom:15px;">🔙 Lobby</button><div class="grid-2"><div class="glass card"><h3 class="neon" style="color:var(--warning);margin-top:0;">Approvals</h3>`;
+        if(!ws?.length) h+=`<p style="font-size:12px;color:var(--text-muted);">None.</p>`;
+        ws?.forEach(w=>{ h+=`<div style="background:var(--card-bg);padding:12px;border:1px solid var(--glass-border);border-radius:8px;margin-bottom:8px;"><b>${w.name}</b><br><span style="font-size:10px;">ID: ${w.id}</span><button class="success" onclick="appWs('${w.id}')">Approve</button></div>`; });
+        h+=`</div><div class="glass card"><h3 class="neon" style="margin-top:0;">Registry</h3><div style="max-height:400px;overflow-y:auto;padding-right:5px;">`;
+        us?.forEach(u=>{ h+=`<div style="padding:10px;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center;background:var(--card-bg);margin-bottom:6px;border-radius:6px;opacity:${u.status==='banned'?0.5:1};"><div><b>${u.full_name}</b><br><span style="font-size:10px;color:var(--text-muted);">@${u.username}</span></div>${u.id!==sessionUser.id?`<div style="display:flex;gap:5px;">${u.status==='banned'?`<button class="success" style="padding:4px 8px;margin:0;font-size:10px;" onclick="updProf('${u.id}','active')">Unban</button>`:`<button class="warning" style="padding:4px 8px;margin:0;font-size:10px;" onclick="warn('${u.id}')">Warn</button><button class="danger" style="padding:4px 8px;margin:0;font-size:10px;" onclick="updProf('${u.id}','banned')">Ban</button>`}</div>`:'<span>MAX</span>'}</div>`; });
+        document.getElementById('contentArea').innerHTML=h+`</div></div></div>`; showLoader(false);
+    }
+    window.appWs = async (id) => { showLoader(true); await db.from('workspaces').update({status:'active'}).eq('id',id); loadSuperAdmin(); };
+    window.updProf = async (id, status) => { showLoader(true); await db.from('profiles').update({status}).eq('id',id); loadSuperAdmin(); };
+    window.warn = (id) => { const m=prompt("Enter warning:"); if(m){ showLoader(true); db.from('profiles').update({warning_message:m}).eq('id',id).then(()=>{showLoader(false);loadSuperAdmin();}); } };
+    
+    window.executeSearch = async () => {
+        const t=document.getElementById('searchType').value, q=document.getElementById('searchInput').value.trim().toLowerCase(), r=document.getElementById('searchResults');
+        if(!q) return; r.innerHTML = '<p style="font-size:12px;color:var(--secondary);text-align:center;">Querying...</p>';
+        try {
+            if(t==='users') {
+                const {data} = await db.from('profiles').select('id,username,full_name,avatar_url,status').ilike('username',`%${q}%`).eq('status','active');
+                r.innerHTML = !data.length ? '<p style="font-size:12px;text-align:center;">No residents.</p>' : data.map(u=>`<div style="padding:10px;background:var(--card-bg);border-radius:8px;border:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-wrapper" style="width:30px;height:30px;">${u.avatar_url?`<img src="${u.avatar_url}">`:svgs["User"]}</div><div><b>@${u.username}</b><br><span style="font-size:10px;">${u.full_name}</span></div></div>${currentWorkspace&&isAdmin()?`<button class="success" style="width:auto;padding:4px 8px;margin:0;font-size:10px;" onclick="inviteUser('${u.id}')">Invite</button>`:'<span style="font-size:10px;">View Only</span>'}</div>`).join('');
+            } else {
+                const {data} = await db.from('workspaces').select('id,name,photo_url').eq('id',q).eq('status','active');
+                r.innerHTML = !data.length ? '<p style="font-size:12px;text-align:center;">No environment.</p>' : data.map(w=>`<div style="padding:10px;background:var(--card-bg);border-radius:8px;border:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-wrapper" style="width:30px;height:30px;background:rgba(34,211,238,0.1);color:var(--secondary);">${w.photo_url?`<img src="${w.photo_url}">`:'📁'}</div><b>${w.name}</b></div><button class="success" style="width:auto;padding:4px 8px;margin:0;font-size:10px;" onclick="requestJoin('${w.id}')">Req Join</button></div>`).join('');
+            }
+        } catch(e) { r.innerHTML=`<p style="color:var(--danger);font-size:12px;">${e.message}</p>`; }
+    }
+    window.inviteUser = async (uid) => { if(!currentWorkspace) return; try{await db.from('workspace_members').insert([{workspace_id: currentWorkspace.workspace_id, user_id: uid, role: 'member', status: 'pending_invite'}]); pushNotif(uid, `You were invited to ${currentWorkspace.workspaces.name}`); customAlert("Invite Sent");}catch(e){customAlert(e.message);} };
+    window.requestJoin = async (id) => { try{await db.from('workspace_members').insert([{workspace_id: id, user_id: sessionUser.id, role: 'member', status: 'pending_approval'}]); customAlert("Request Sent");}catch(e){customAlert(e.message);} };
+    
+    // Optimistic UI for responding to invites
+    window.respondInvite = async (id, s) => { 
+        const el = document.getElementById('inv_'+id); 
+        if(el) el.style.display = 'none'; // Instant UI Feedback
+        try { 
+            await db.from('workspace_members').update({status:s}).eq('workspace_id',id).eq('user_id',sessionUser.id); 
+            setTimeout(() => loadLobby(), 500); // Reload silently in background
+        } catch(e) { 
+            if(el) el.style.display = 'flex'; // Revert if failed
+            customAlert(e.message); 
+        } 
+    };
+
+    window.onload = checkSession;
+</script>
+</body>
+</html>
