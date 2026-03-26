@@ -8,15 +8,10 @@
   "theme_color": "#0F172A",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192/22D3EE/0F172A?text=Da",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='200' height='200' fill='%230F172A'/%3E%3Cpath d='M100 15L175 58V142L100 185L25 142V58L100 15Z' stroke='%2322D3EE' stroke-width='8'/%3E%3Cpath d='M100 40V160' stroke='%23FFF' stroke-width='12' stroke-linecap='round'/%3E%3Cpath d='M100 40C145 40 155 70 155 100C155 130 145 160 100 160' stroke='%238B5CF6' stroke-width='12' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M70 100L45 75M70 100L45 125' stroke='%23FFF' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='45' cy='75' r='6' fill='%2322D3EE'/%3E%3Ccircle cx='45' cy='125' r='6' fill='%238B5CF6'/%3E%3Ccircle cx='100' cy='100' r='8' fill='%23FFF'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
-    },
-    {
-      "src": "https://via.placeholder.com/512/22D3EE/0F172A?text=Da",
-      "sizes": "512x512",
-      "type": "image/png"
     }
   ]
 }
