@@ -76,6 +76,14 @@
         /* Collapse Header */
         .collapse-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; margin-bottom: 10px; transition: 0.2s;}
         .collapse-header:hover { color: var(--secondary); }
+        .fab-add { position: fixed; right: 24px; bottom: 92px; width: 58px; height: 58px; border-radius: 50%; z-index: 1400; display: none; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 18px 35px rgba(0,0,0,0.35); }
+        .profile-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 15px; }
+        .profile-detail { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; font-size: 12px; }
+        .profile-detail strong { display: block; color: var(--secondary); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.4px; }
+        .pin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .tab-btn { width: auto; padding: 8px 12px; margin: 0; background: transparent; border: 1px solid var(--glass-border); color: var(--text); }
+        .tab-btn.active { background: rgba(34,211,238,0.12); border-color: var(--secondary); color: var(--secondary); }
 
         @media (max-width: 768px) {
             .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -85,6 +93,7 @@
             #main { padding: 10px; padding-bottom: 60px; } .modal-content { padding: 20px; }
             .notif-dropdown { position: fixed; top: 60px; right: 10px; left: 10px; width: auto; }
             .admin-panel .flex-row { flex-direction: column; align-items: stretch; } .admin-panel .flex-row > * { width: 100%; margin-bottom: 5px; }
+            .fab-add { right: 16px; bottom: 74px; }
         }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index: 999999; display:none; justify-content:center; align-items:center; flex-direction: column; color: var(--secondary); font-weight:bold; backdrop-filter: blur(8px); }
@@ -262,7 +271,7 @@
                 <input id="wsPhotoFile" type="file" accept="image/*" style="margin: 0; padding: 0; background: transparent; border: none;">
             </div>
 
-            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Active Modules (Max 6)</h4>
+            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Active Modules</h4>
             <div id="featureList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
             <div style="display: flex; gap: 12px; margin-top: 30px;"><button class="danger" onclick="hideModal('createWsModal')">Abort</button><button class="success" onclick="submitWorkspace()">Submit Request</button></div>
         </div>
@@ -285,7 +294,7 @@
                 <label style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; display: block;">Update Workspace Photo (Leave blank to keep)</label>
                 <input id="e_wsPhotoFile" type="file" accept="image/*" style="margin: 0; padding: 0; background: transparent; border: none;">
             </div>
-            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Update Modules (Max 6)</h4>
+            <h4 style="margin: 25px 0 15px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Update Modules</h4>
             <div id="e_featureList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
             
             <div style="margin-top: 30px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
@@ -331,6 +340,11 @@
         <img id="lightboxImg" src="" style="max-width:90vw; max-height:80vh; object-fit:contain; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.7);">
         <div id="lightboxCaption" style="color: #fff; margin-top: 15px; font-weight: bold; font-size: 16px;"></div>
     </div>
+
+    <div id="actionFormModal" class="modal-overlay">
+        <div class="modal-content" id="actionFormContent"></div>
+    </div>
+    <button id="moduleFab" class="success fab-add" onclick="openActionForm(currentModule)">+</button>
 
 <script>
     // --- PWA AUTO UPDATER & CACHE CLEAR ---
@@ -378,6 +392,126 @@
     let sessionUser = null; let userProfile = null; let currentWorkspace = null; let myWorkspaces = []; let wsMembersFull = [];
     let isViewerMode = false; 
     const availableFeatures = ['Dashboard', 'Gallery', 'Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links'];
+    const modulesWithAddAction = new Set(['Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links', 'Gallery']);
+    const PIN_STORAGE_KEY = 'dadevs_pinned_items_v1';
+    const SUPERADMIN_ACCESS_MS = 5 * 60 * 1000;
+    let superAdminAccessUntil = 0;
+
+    const hasFeature = (feature) => !!(currentWorkspace?.workspaces?.features || []).includes(feature);
+    const canManageFunds = () => isAdmin() && hasFeature('Funds');
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+    function getPinnedItems() {
+        try { return JSON.parse(localStorage.getItem(PIN_STORAGE_KEY) || '[]'); }
+        catch { return []; }
+    }
+    function savePinnedItems(items) {
+        localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(items));
+    }
+    function getMyPinnedItems() {
+        if(!sessionUser) return [];
+        return getPinnedItems().filter(item => item.user_id === sessionUser.id);
+    }
+    function isPinned(module, itemId, workspaceId = currentWorkspace?.workspace_id) {
+        return getMyPinnedItems().some(item => item.module === module && item.item_id === itemId && item.workspace_id === workspaceId);
+    }
+    function togglePinItem(item) {
+        if(!sessionUser) return;
+        const pins = getPinnedItems();
+        const index = pins.findIndex(pin => pin.user_id === sessionUser.id && pin.workspace_id === item.workspace_id && pin.module === item.module && pin.item_id === item.item_id);
+        if(index >= 0) pins.splice(index, 1);
+        else pins.unshift({ ...item, user_id: sessionUser.id, pinned_at: new Date().toISOString() });
+        savePinnedItems(pins);
+        if(document.getElementById('userProfileModal').style.display === 'flex') {
+            const activeTarget = document.getElementById('userProfileModalContent').dataset.userId;
+            if(activeTarget) openWorkspaceUserModal(activeTarget);
+        } else if(currentModule) {
+            renderModule(currentModule);
+        }
+    }
+    window.togglePinEncoded = (encoded) => togglePinItem(JSON.parse(decodeURIComponent(encoded)));
+    function renderPinButton(item) {
+        const pinned = isPinned(item.module, item.item_id, item.workspace_id);
+        const payload = encodeURIComponent(JSON.stringify(item));
+        return `<button class="${pinned ? 'warning' : 'success'}" style="width:auto;padding:6px 10px;margin:0;" onclick="event.stopPropagation();togglePinEncoded('${payload}')">${pinned ? 'Unpin' : 'Pin'}</button>`;
+    }
+    function renderModuleFab(mod) {
+        const fab = document.getElementById('moduleFab');
+        if(isAdmin() && modulesWithAddAction.has(mod)) fab.style.display = 'flex';
+        else fab.style.display = 'none';
+    }
+    function getProfileContactDetails(prof) {
+        return [
+            { label: 'Email', value: prof.contact_email || 'Not provided' },
+            { label: 'Phone', value: prof.phone || 'Not provided' },
+            { label: 'Messenger', value: prof.messenger || 'Not provided' },
+            { label: 'GitHub', value: prof.github || 'Not provided' }
+        ];
+    }
+    function renderPinnedSection(targetId) {
+        if(targetId !== sessionUser?.id) return '';
+        const pins = getMyPinnedItems();
+        return `
+            <div style="margin-top:15px; text-align:center;">
+                <button class="warning" style="width:auto;" onclick="showProfilePins()">Pinned (${pins.length})</button>
+            </div>
+        `;
+    }
+    function showProfilePins() {
+        const pins = getMyPinnedItems();
+        const content = pins.length ? pins.map(pin => `
+            <div style="padding:12px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                <div>
+                    <div style="font-weight:bold;">${escapeHtml(pin.title || pin.caption || pin.item_id)}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(pin.workspace_name || 'Workspace')} • ${escapeHtml(pin.module)}</div>
+                </div>
+                <div class="pin-row">
+                    ${pin.url ? `<button class="success" style="width:auto;padding:6px 10px;margin:0;" onclick="window.open('${pin.url}','_blank')">Open</button>` : ''}
+                    <button class="danger" style="width:auto;padding:6px 10px;margin:0;" onclick="togglePinEncoded('${encodeURIComponent(JSON.stringify(pin))}')">Remove</button>
+                </div>
+            </div>
+        `).join('') : `<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:0;">No pinned items yet.</p>`;
+        document.getElementById('actionFormContent').innerHTML = `<h3 class="neon" style="margin-top:0;">Pinned Items</h3><div style="display:flex;flex-direction:column;gap:10px;">${content}</div><button class="danger" onclick="hideModal('actionFormModal')">Close</button>`;
+        showModal('actionFormModal');
+    }
+    async function ensureSuperAdminAccess() {
+        if(userProfile?.role !== 'superadmin') return false;
+        if(Date.now() < superAdminAccessUntil) return true;
+        const password = prompt('Enter superadmin password to continue:');
+        if(!password) return false;
+        showLoader(true, 'Verifying superadmin access...');
+        try {
+            const { error } = await db.auth.signInWithPassword({ email: `${userProfile.username}${PSEUDO_DOMAIN}`, password });
+            if(error) throw error;
+            superAdminAccessUntil = Date.now() + SUPERADMIN_ACCESS_MS;
+            return true;
+        } catch (e) {
+            customAlert('Superadmin verification failed: ' + e.message, 'Access Denied', '🚫');
+            return false;
+        } finally {
+            showLoader(false);
+        }
+    }
+    function openActionForm(mod) {
+        if(!modulesWithAddAction.has(mod) || !isAdmin()) return;
+        const memOpts = wsMembersFull.map(m => `<option value="${m.profile.id}">${m.profile.full_name}</option>`).join('');
+        let html = '';
+        if(mod === 'Sprint Board') {
+            html = `<h3 class="neon" style="margin-top:0;">Create Sprint</h3><div class="flex-row"><input id="smN" placeholder="Name" style="flex:2;"><input id="smW" type="number" placeholder="Weeks" style="flex:1;"><input id="smP" placeholder="Phase" style="flex:2;"></div><div class="flex-row"><textarea id="smO" placeholder="Objectives" style="flex:1;height:80px;"></textarea><textarea id="smD" placeholder="Deliverables" style="flex:1;height:80px;"></textarea></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addSprint()">Create</button></div>`;
+        } else if(mod === 'Timeline') {
+            html = `<h3 class="neon" style="margin-top:0;">Add Task</h3><div class="flex-row"><input id="tlP" placeholder="Phase" style="flex:1;"><input id="tlT" placeholder="Task Name" style="flex:2;"><select id="tlO" style="flex:1;"><option value="">Team (Unassigned)</option>${memOpts}</select><input id="tlProg" type="number" placeholder="Prog %" style="flex:1;"></div><div class="flex-row"><input id="tlS" type="date" title="Start" style="flex:1;"><input id="tlD" type="date" title="Scheduled" style="flex:1;"><input id="tlE" type="date" title="Actual End" style="flex:1;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addTL()">Add Task</button></div>`;
+        } else if(mod === 'Funds') {
+            html = `<h3 class="neon" style="margin-top:0;">Record Transaction</h3><div class="flex-row"><select id="fT" style="flex:1;"><option value="in">Income (+)</option><option value="out">Expense (-)</option></select><input id="fD" type="date" style="flex:1;"><select id="fC" style="flex:2;"><option value="" disabled selected>Contributor...</option><option value="other">Other/Misc</option>${memOpts}</select></div><div class="flex-row"><input id="fDesc" placeholder="Description" style="flex:2;"><input id="fA" type="number" placeholder="Amt ₱" style="flex:1;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addFund()">Record</button></div>`;
+        } else if(mod === 'Calendar') {
+            html = `<h3 class="neon" style="margin-top:0;">Schedule Event</h3><div class="flex-row"><input id="ceT" placeholder="Event Title" style="flex:2;"><input id="ceD" type="date" style="flex:1;"><select id="ceTy" style="flex:1;"><option value="meeting">Meeting</option><option value="defense">Defense</option><option value="other">Other</option></select></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addCal()">Schedule</button></div>`;
+        } else if(mod === 'Resources' || mod === 'Links') {
+            html = `<h3 class="neon" style="margin-top:0;">Add Resource</h3><div class="flex-row"><input id="rT" placeholder="Title" style="flex:2;"><select id="rTy" style="flex:1;" onchange="document.getElementById('rU').style.display=this.value==='link'?'block':'none';document.getElementById('rF').style.display=this.value==='file'?'block':'none';"><option value="link">Web Link</option><option value="file">Upload File</option></select></div><div class="flex-row"><input id="rU" placeholder="URL" style="flex:2;"><input id="rF" type="file" style="flex:2;display:none;padding:9px;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addRes()">Add</button></div>`;
+        } else if(mod === 'Gallery') {
+            html = `<h3 class="neon" style="margin-top:0;">Upload Gallery Item</h3><div class="flex-row"><input id="gFolder" placeholder="Folder Name" value="${currentGalleryFolder || ''}" style="flex:1;"><input id="gC" placeholder="Caption (Optional)" style="flex:1;"></div><div class="flex-row"><input id="gF" type="file" accept="image/*" multiple style="flex:2;padding:9px;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addGal()">Upload</button></div>`;
+        }
+        document.getElementById('actionFormContent').innerHTML = html;
+        showModal('actionFormModal');
+    }
 
     // --- UI HELPERS ---
     const customAlert = (m, t="System Alert", i="⚠️") => { document.getElementById('dialogTitle').innerText=t; document.getElementById('dialogMessage').innerText=m; document.getElementById('dialogIcon').innerText=i; document.getElementById('dialogButtons').innerHTML=`<button class="success" onclick="closeDialog()">Acknowledge</button>`; openDialog(); };
@@ -571,6 +705,7 @@
     async function loadLobby() {
         currentWorkspace = null; isViewerMode = false; document.getElementById('viewToggleContainer').innerHTML = '';
         document.getElementById('viewTitle').innerText = `@${userProfile.username}`; document.getElementById('bottomNav').innerHTML = '';
+        document.getElementById('moduleFab').style.display = 'none';
         try {
             const { data: wm, error: wmErr } = await db.from('workspace_members').select('workspace_id, role, status').eq('user_id', sessionUser.id);
             if(wmErr) throw wmErr;
@@ -587,7 +722,7 @@
     function renderLobbyUI() {
         let html = `<div class="grid-2"><div class="glass card" style="text-align:center; position:relative;"><h3 class="neon" style="margin-top:0;font-size:24px;">Identification</h3>`;
         html += `<button class="icon-btn" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:var(--text); font-size:18px; padding:0; width:auto;" onclick="openProfileSettings()" title="Settings">⚙️</button>`;
-        html += `<div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;"><div style="position:relative;"><div class="avatar-wrapper" style="width:90px;height:90px;border-color:var(--secondary);">${userProfile.avatar_url ? `<img src="${userProfile.avatar_url}">` : svgs["User"]}</div><div style="position:absolute; bottom:-5px; right:-5px; font-size:24px; background:var(--bg-1); border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; border:2px solid var(--glass-border);">${userProfile.sticker||'👤'}</div></div><label style="margin-top:16px;font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics<input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)"></label></div><div style="background:var(--card-bg);padding:15px;border-radius:12px;border:1px solid var(--glass-border);"><div style="font-size:18px;font-weight:bold;">${userProfile.full_name}</div><div style="font-size:14px;color:var(--secondary);margin-top:6px;">@${userProfile.username}</div>${userProfile.bio?`<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-style:italic;">"${userProfile.bio}"</div>`:''}<div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-transform:uppercase;font-weight:bold;">Access: ${userProfile.role}</div></div><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="showModal('createWsModal')" style="flex:1;">+ Provision Workspace</button></div>${userProfile.role==='superadmin'?`<button class="success" style="margin-top:10px;" onclick="loadSuperAdmin()">👑 Super Admin Command</button>`:''}</div>`;
+        html += `<div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;"><div style="position:relative;"><div class="avatar-wrapper" style="width:90px;height:90px;border-color:var(--secondary);">${userProfile.avatar_url ? `<img src="${userProfile.avatar_url}">` : svgs["User"]}</div><div style="position:absolute; bottom:-5px; right:-5px; font-size:24px; background:var(--bg-1); border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; border:2px solid var(--glass-border);">${userProfile.sticker||'👤'}</div></div><label style="margin-top:16px;font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics<input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)"></label></div><div style="background:var(--card-bg);padding:15px;border-radius:12px;border:1px solid var(--glass-border);width:100%;box-sizing:border-box;"><div style="font-size:18px;font-weight:bold;">${userProfile.full_name}</div><div style="font-size:14px;color:var(--secondary);margin-top:6px;">@${userProfile.username}</div>${userProfile.bio?`<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-style:italic;">"${userProfile.bio}"</div>`:''}<div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-transform:uppercase;font-weight:bold;">Access: ${userProfile.role}</div></div><div style="display:flex;gap:10px;margin-top:20px;width:100%;"><button onclick="showModal('createWsModal')" style="flex:1;">+ Provision Workspace</button></div><div style="display:flex;gap:10px;margin-top:10px;width:100%;"><button class="warning" style="flex:1;" onclick="showProfilePins()">Pinned Items</button></div>${userProfile.role==='superadmin'?`<button class="success" style="margin-top:10px;" onclick="loadSuperAdmin()">👑 Super Admin Command</button>`:''}</div>`;
         html += `<div class="glass card" style="display:flex;flex-direction:column;"><div class="collapse-header" onclick="toggleCol('envList')"><h3 class="neon" style="margin:0;font-size:22px;">Active Environments</h3><div style="display:flex; align-items:center; gap:10px;"><span style="font-size:12px;color:var(--text-muted);font-weight:bold;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${myWorkspaces.length}/10</span><span>▼</span></div></div><div id="envList" style="flex:1;max-height:400px;overflow-y:auto;padding-right:5px; margin-top:10px;">`;
         if(!myWorkspaces.length) html += `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:40px;">No environments detected.</p>`;
         else myWorkspaces.forEach(ws => {
@@ -612,7 +747,7 @@
         document.getElementById(containerId).innerHTML = availableFeatures.map(f=>`<label class="feature-toggle"><input type="checkbox" value="${f}" class="ws-feature-cb" onchange="handleFeatureToggle(this)"> <span style="display:flex;align-items:center;gap:8px;font-size:14px;"><span style="width:18px;height:18px;color:var(--secondary);">${svgs[f]||'⚡'}</span> ${f}</span></label>`).join(''); 
     }
     
-    function limitFeatures(cb) { if(cb.closest('.modal-content').querySelectorAll('.ws-feature-cb:checked').length > 6) { customAlert("Max 6 active modules."); cb.checked=false; } }
+    function limitFeatures(cb) { return cb; }
 
     async function submitWorkspace() {
         if(myWorkspaces.length >= 10) return customAlert("Environment limit reached (10).");
@@ -626,7 +761,8 @@
             const url = file.files.length ? await uploadToCloudinary(file.files[0]) : null;
             const id = n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase() + '-' + Math.random().toString(36).substring(2,6);
             
-            const {error: wsErr} = await db.from('workspaces').insert([{ id, name: n, photo_url: url, features: f, status: 'pending', created_by: sessionUser.id, fund_amount: fAmt, fund_frequency: fFreq }]);
+            const fundsEnabled = f.includes('Funds');
+            const {error: wsErr} = await db.from('workspaces').insert([{ id, name: n, photo_url: url, features: f, status: 'pending', created_by: sessionUser.id, fund_amount: fundsEnabled ? fAmt : null, fund_frequency: fundsEnabled ? fFreq : null }]);
             if(wsErr) throw wsErr;
             
             const {error: memErr} = await db.from('workspace_members').insert([{ workspace_id: id, user_id: sessionUser.id, role: 'admin', status: 'active', display_role: 'Creator' }]);
@@ -680,6 +816,7 @@
 
     // New: Allow Super Admin to enter any workspace from the registry
     window.enterWorkspaceAsSuperAdmin = async (wsId) => {
+        if(!(await ensureSuperAdminAccess())) return;
         showLoader(true, "Bypassing Security...");
         try {
             const {data: wData, error: wErr} = await db.from('workspaces').select('*').eq('id', wsId).single();
@@ -713,6 +850,7 @@
         currentModule = mod; if(mod==='Lobby') return loadLobby();
         document.getElementById('bottomNav').innerHTML = buildNav('Lobby','Lobby') + currentWorkspace.workspaces.features.map(f=>buildNav(f,f)).join('') + buildNav('Members','Members');
         const c = document.getElementById('contentArea'); c.innerHTML = '';
+        renderModuleFab(mod);
         
         // Viewer Toggle Header
         const vt = document.getElementById('viewToggleContainer');
@@ -763,14 +901,15 @@
         
         showLoader(true, "Updating Architecture...");
         try {
-            let updates = { name: n, features: f, fund_amount: fAmt, fund_frequency: fFreq };
+            const fundsEnabled = f.includes('Funds');
+            let updates = { name: n, features: f, fund_amount: fundsEnabled ? fAmt : null, fund_frequency: fundsEnabled ? fFreq : null };
             if(file.files.length) updates.photo_url = await uploadToCloudinary(file.files[0]);
             
             const {error} = await db.from('workspaces').update(updates).eq('id', currentWorkspace.workspace_id);
             if(error) throw error;
             
             currentWorkspace.workspaces.name = n; currentWorkspace.workspaces.features = f;
-            currentWorkspace.workspaces.fund_amount = fAmt; currentWorkspace.workspaces.fund_frequency = fFreq;
+            currentWorkspace.workspaces.fund_amount = updates.fund_amount; currentWorkspace.workspaces.fund_frequency = updates.fund_frequency;
             if(updates.photo_url) currentWorkspace.workspaces.photo_url = updates.photo_url;
             hideModal('editWsModal'); enterWorkspace(currentWorkspace.workspace_id);
         } catch(e) { customAlert(e.message); } finally { showLoader(false); }
@@ -993,10 +1132,10 @@
 
     // --- MODULE: DASHBOARD ---
     async function modDash(c, headerActions) {
-        showLoader(true); const [sprints, funds, gal] = await Promise.all([fetchWSData('sprints'), fetchWSData('funds'), fetchWSData('gallery')]); showLoader(false);
+        showLoader(true); const [sprints, funds, gal] = await Promise.all([fetchWSData('sprints'), hasFeature('Funds') ? fetchWSData('funds') : Promise.resolve([]), fetchWSData('gallery')]); showLoader(false);
         const doneS = sprints.filter(s=>s.status==='Done').length, totF = funds.reduce((a,f)=>f.type==='in'?a+Number(f.amount):a-Number(f.amount),0), feat = gal.filter(g=>g.featured);
         let h = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3 style="margin:0; color:var(--secondary);">Environment Overview</h3>${headerActions}</div>`;
-        h += `<div class="grid-2"><div class="glass card"><h3 class="neon" style="margin-top:0;">Sprint Progress</h3><div style="background:rgba(255,255,255,0.1);border-radius:10px;height:10px;margin-top:15px;"><div style="width:${sprints.length?(doneS/sprints.length)*100:0}%;background:var(--secondary);height:100%;box-shadow:0 0 10px var(--secondary);"></div></div><p style="margin-top:10px;font-size:14px;color:var(--text-muted);">${doneS} of ${sprints.length} Completed</p></div><div class="glass card"><h3 class="neon" style="margin-top:0;">Financial Overview</h3><h2 style="margin:10px 0;font-size:32px;">₱${totF.toLocaleString()}</h2><p style="font-size:14px;color:var(--text-muted);margin:0;">Available Balance</p></div></div>`;
+        h += `<div class="grid-2"><div class="glass card"><h3 class="neon" style="margin-top:0;">Sprint Progress</h3><div style="background:rgba(255,255,255,0.1);border-radius:10px;height:10px;margin-top:15px;"><div style="width:${sprints.length?(doneS/sprints.length)*100:0}%;background:var(--secondary);height:100%;box-shadow:0 0 10px var(--secondary);"></div></div><p style="margin-top:10px;font-size:14px;color:var(--text-muted);">${doneS} of ${sprints.length} Completed</p></div>${hasFeature('Funds') ? `<div class="glass card"><h3 class="neon" style="margin-top:0;">Financial Overview</h3><h2 style="margin:10px 0;font-size:32px;">₱${totF.toLocaleString()}</h2><p style="font-size:14px;color:var(--text-muted);margin:0;">Available Balance</p></div>` : ''}</div>`;
         h += `<div class="collapse-header" onclick="toggleCol('dashFeat')"><h3 style="margin:0; color:var(--secondary);">Featured Showcase</h3><span>▼</span></div><div id="dashFeat" style="margin-top:10px;">`;
         if(!feat.length) h+=`<div class="glass card" style="text-align:center;color:var(--text-muted);">No featured assets.</div>`;
         else h+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">${feat.map(g=>`<div style="border-radius:10px;overflow:hidden;aspect-ratio:1;border:1px solid var(--glass-border);"><img src="${g.url}" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>`;
@@ -1006,7 +1145,7 @@
     // --- MODULE: SPRINT BOARD ---
     async function modSprint(c) {
         showLoader(true); const sprints = await fetchWSData('sprints'); showLoader(false);
-        let h = isAdmin() ? `<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--secondary);">Create Sprint</h4><div class="flex-row"><input id="smN" placeholder="Name" style="flex:2;"><input id="smW" type="number" placeholder="Weeks" style="flex:1;"><input id="smP" placeholder="Phase" style="flex:2;"></div><div class="flex-row"><textarea id="smO" placeholder="Objectives" style="flex:1;height:40px;"></textarea><textarea id="smD" placeholder="Deliverables" style="flex:1;height:40px;"></textarea><button onclick="addSprint()" style="flex:0.5;margin:0;">Create</button></div></div>` : '';
+        let h = '';
         h += `<div style="display:flex;gap:15px;overflow-x:auto;padding-bottom:15px;scroll-snap-type:x mandatory;">`;
         ["To Do", "In Progress", "Review", "Done"].forEach(col => {
             const colS = sprints.filter(s=>s.status===col);
@@ -1019,20 +1158,20 @@
             colS.forEach(s => {
                 let statUI = isAdmin() ? `<select onchange="updDB('sprints','${s.id}',{status:this.value},'Sprint Board')" style="margin-top:10px;padding:8px;"><option disabled selected>Move to...</option><option value="To Do">To Do</option><option value="In Progress">In Progress</option><option value="Review">Review</option><option value="Done">Done</option></select>` : `<div style="font-size:11px; font-weight:bold; color:var(--success); margin-top:8px;">Status: ${s.status}</div>`;
                 let delBtn = isAdmin() ? `<button class="danger" style="position:absolute;top:5px;right:5px;width:auto;padding:2px 6px;margin:0;font-size:10px;" onclick="delDB('sprints','${s.id}','Sprint Board')">✖</button>` : '';
-                h+=`<div class="task-card">${delBtn}<div style="font-weight:bold;color:var(--secondary);margin-bottom:5px;padding-right:20px;">${s.name}</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Phase: ${s.phase} &bull; ${s.weeks} Wks</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;margin-bottom:5px;"><b>Obj:</b> ${s.objectives}</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;"><b>Del:</b> ${s.deliverables}</div>${statUI}</div>`;
+                h+=`<div class="task-card">${delBtn}<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding-right:26px;"><div style="font-weight:bold;color:var(--secondary);margin-bottom:5px;">${s.name}</div>${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Sprint Board', item_id: s.id, title: s.name })}</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Phase: ${s.phase} &bull; ${s.weeks} Wks</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;margin-bottom:5px;"><b>Obj:</b> ${s.objectives}</div><div style="font-size:12px;background:var(--card-bg);padding:5px;border-radius:4px;"><b>Del:</b> ${s.deliverables}</div>${statUI}</div>`;
             });
             h+=`</div></div>`;
         });
         c.innerHTML = h + `</div>`;
     }
-    window.addSprint = async () => { const n=document.getElementById('smN').value, w=document.getElementById('smW').value, p=document.getElementById('smP').value, o=document.getElementById('smO').value, d=document.getElementById('smD').value; if(!n) return customAlert("Name required"); showLoader(true); await db.from('sprints').insert([{workspace_id:currentWorkspace.workspace_id, name:n, weeks:w||1, phase:p||'None', objectives:o||'TBD', deliverables:d||'TBD'}]); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Sprint Board'),800);">📋 @${userProfile.username} mapped Sprint: ${n}</span>`); showLoader(false); renderModule('Sprint Board'); };
-    window.updDB = async (t, id, updates, mod) => { showLoader(true); await db.from(t).update(updates).eq('id',id); renderModule(mod); };
+    window.addSprint = async () => { const n=document.getElementById('smN').value, w=document.getElementById('smW').value, p=document.getElementById('smP').value, o=document.getElementById('smO').value, d=document.getElementById('smD').value; if(!n) return customAlert("Name required"); showLoader(true); await db.from('sprints').insert([{workspace_id:currentWorkspace.workspace_id, name:n, weeks:w||1, phase:p||'None', objectives:o||'TBD', deliverables:d||'TBD'}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Sprint Board'),800);">📋 @${userProfile.username} mapped Sprint: ${n}</span>`); showLoader(false); renderModule('Sprint Board'); };
+    window.updDB = async (t, id, updates, mod) => { if(t === 'funds' && !canManageFunds()) return customAlert("Funds feature is not enabled for this workspace."); showLoader(true); await db.from(t).update(updates).eq('id',id); renderModule(mod); };
 
     // --- MODULE: TIMELINE ---
     async function modTimeline(c) {
         showLoader(true); const tl = await fetchWSData('timeline'); showLoader(false);
         const memOpts = wsMembersFull.map(m=>`<option value="${m.profile.id}">${m.profile.full_name}</option>`).join('');
-        let h = isAdmin() ? `<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--accent);">Add Task</h4><div class="flex-row"><input id="tlP" placeholder="Phase" style="flex:1;"><input id="tlT" placeholder="Task Name" style="flex:2;"><select id="tlO" style="flex:1;"><option value="">Team (Unassigned)</option>${memOpts}</select><input id="tlProg" type="number" placeholder="Prog %" style="flex:1;"></div><div class="flex-row"><input id="tlS" type="date" title="Start" style="flex:1;"><input id="tlD" type="date" title="Scheduled" style="flex:1;"><input id="tlE" type="date" title="Actual End" style="flex:1;"><button onclick="addTL()" style="flex:1;margin:0;">Add Task</button></div></div>` : '';
+        let h = '';
         h += `<div class="glass card" style="overflow-x:auto;"><h3 style="margin-top:0;">Gantt Schedule</h3>`;
         if(!tl.length) h+=`<p style="color:var(--text-muted);">No tasks.</p>`;
         else {
@@ -1046,16 +1185,17 @@
                 const ownerName = t.owner ? (wsMembersFull.find(m=>m.user_id===t.owner)?.profile.full_name || 'Unknown') : 'Team';
                 let progUI = isAdmin() ? `<select onchange="updDB('timeline','${t.id}',{progress:this.value},'Timeline')" style="padding:4px; font-size:10px; margin:0; width:auto;"><option value="0" ${t.progress==0?'selected':''}>0%</option><option value="25" ${t.progress==25?'selected':''}>25%</option><option value="50" ${t.progress==50?'selected':''}>50%</option><option value="75" ${t.progress==75?'selected':''}>75%</option><option value="100" ${t.progress==100?'selected':''}>100%</option></select>` : `${t.progress}%`;
                 let delBtn = isAdmin() ? `<td><button class="danger" style="padding:4px 8px;margin:0;width:auto;font-size:10px;" onclick="delDB('timeline','${t.id}','Timeline')">✖</button></td>` : '';
-                h+=`<tr><td style="font-weight:bold; white-space:normal;">${t.title}</td><td style="color:var(--secondary);">${ownerName}</td><td>${t.start_date||'--'}</td><td>${t.sched_date||'--'}</td><td style="color:${col};">${t.end_date||'--'}</td><td>${progUI}</td><td><div class="gantt-track"><div style="position:absolute;left:${lP}%;width:${wP}%;background:${col};height:100%;opacity:0.8;"></div><div style="position:absolute;left:${scP}%;width:2px;background:var(--accent);height:100%;z-index:2;"></div></div></td>${delBtn}</tr>`;
+                h+=`<tr><td style="font-weight:bold; white-space:normal;">${t.title}<div style="margin-top:8px;">${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Timeline', item_id: t.id, title: t.title })}</div></td><td style="color:var(--secondary);">${ownerName}</td><td>${t.start_date||'--'}</td><td>${t.sched_date||'--'}</td><td style="color:${col};">${t.end_date||'--'}</td><td>${progUI}</td><td><div class="gantt-track"><div style="position:absolute;left:${lP}%;width:${wP}%;background:${col};height:100%;opacity:0.8;"></div><div style="position:absolute;left:${scP}%;width:2px;background:var(--accent);height:100%;z-index:2;"></div></div></td>${delBtn}</tr>`;
             });
             h+=`</table>`;
         }
         c.innerHTML = h + `</div>`;
     }
-    window.addTL = async () => { const p=document.getElementById('tlP').value||'Phase 1', t=document.getElementById('tlT').value, o=document.getElementById('tlO').value, pr=document.getElementById('tlProg').value||0, s=document.getElementById('tlStart').value, d=document.getElementById('tlSched').value, e=document.getElementById('tlEnd').value; if(!t||!s||!d) return customAlert("Title, Start, and Sched required."); showLoader(true); await db.from('timeline').insert([{workspace_id:currentWorkspace.workspace_id, phase:p, title:t, owner:o||null, progress:pr, start_date:s, sched_date:d, end_date:e||null}]); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Timeline'),800);">📅 @${userProfile.username} plotted task: ${t}</span>`); showLoader(false); renderModule('Timeline'); };
+    window.addTL = async () => { const p=document.getElementById('tlP').value||'Phase 1', t=document.getElementById('tlT').value, o=document.getElementById('tlO').value, pr=document.getElementById('tlProg').value||0, s=document.getElementById('tlS').value, d=document.getElementById('tlD').value, e=document.getElementById('tlE').value; if(!t||!s||!d) return customAlert("Title, Start, and Sched required."); showLoader(true); await db.from('timeline').insert([{workspace_id:currentWorkspace.workspace_id, phase:p, title:t, owner:o||null, progress:pr, start_date:s, sched_date:d, end_date:e||null}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Timeline'),800);">📅 @${userProfile.username} plotted task: ${t}</span>`); showLoader(false); renderModule('Timeline'); };
 
     // --- MODULE: FUNDS ---
     async function modFunds(c) {
+        if(!hasFeature('Funds')) return c.innerHTML = `<div class="glass card" style="text-align:center;"><h3 class="neon" style="margin-top:0;">Funds</h3><p style="color:var(--text-muted);">Funds is not enabled for this workspace.</p></div>`;
         showLoader(true); const funds = await fetchWSData('funds'); showLoader(false);
         let t=0, i=0, e=0; let memFunds = {}; wsMembersFull.forEach(m => memFunds[m.user_id] = 0);
         funds.forEach(f=>{ if(f.type==='in'){ t+=Number(f.amount);i+=Number(f.amount); if(f.contributor_id && memFunds[f.contributor_id] !== undefined) memFunds[f.contributor_id] += Number(f.amount); }else{ t-=Number(f.amount);e+=Number(f.amount); } });
@@ -1066,22 +1206,21 @@
         wsMembersFull.filter(m => m.status === 'active').forEach(m => { const mTotal = memFunds[m.user_id] || 0; const targetAmt = currentWorkspace.workspaces.fund_amount || 50; const metric = currentWorkspace.workspaces.fund_frequency || 'Weekly'; const counts = targetAmt > 0 ? Math.floor(mTotal / targetAmt) : 0; h += `<div class="glass card" style="padding: 15px; text-align: center; border-top: 3px solid var(--secondary); cursor:pointer; margin-bottom:0;" onclick="openWorkspaceUserModal('${m.user_id}')"><div style="font-weight: bold; font-size:14px; color:var(--text);">${m.profile.full_name}</div><div style="font-size: 18px; font-weight: bold; margin: 5px 0; color: var(--success);">₱${mTotal.toLocaleString()}</div><div style="font-size: 10px; color: var(--text-muted);">${counts} ${metric} Paid</div></div>`; });
         h += `</div>`;
 
-        if(isAdmin()) h+=`<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--accent)">Record Transaction</h4><div class="flex-row"><select id="fT" style="flex:1;"><option value="in">Income (+)</option><option value="out">Expense (-)</option></select><input id="fD" type="date" style="flex:1;"><select id="fC" style="flex:2;"><option value="" disabled selected>Contributor...</option><option value="other">Other/Misc</option>${memOpts}</select><input id="fDesc" placeholder="Description" style="flex:2;"><input id="fA" type="number" placeholder="Amt ₱" style="flex:1;"><button onclick="addFund()" style="flex:1;margin:0;">Record</button></div></div>`;
         h+=`<div class="glass card"><div class="collapse-header" onclick="toggleCol('fundLedger')"><h3 style="margin:0;">Ledger</h3><span>▼</span></div><div id="fundLedger" style="max-height:300px;overflow-y:auto;padding-right:5px; margin-top:10px;">`;
         if(!funds.length) h+=`<p style="color:var(--text-muted);font-size:12px;">No transactions.</p>`;
         funds.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(f=>{
             const isI = f.type==='in', cName = f.contributor_id ? (wsMembersFull.find(m=>m.user_id===f.contributor_id)?.profile.full_name || 'Unknown') : 'Misc';
-            h+=`<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;"><div><div style="font-weight:bold;font-size:14px;">${isI?cName:f.description}</div><div style="font-size:10px;color:var(--text-muted);">${f.date}</div></div><div style="display:flex;align-items:center;gap:10px;"><div style="font-weight:bold;color:${isI?'var(--success)':'var(--danger)'};">${isI?'+':'-'}₱${f.amount}</div>${isAdmin()?`<button class="danger" style="padding:4px 8px;margin:0;width:auto;" onclick="delDB('funds','${f.id}','Funds')">✖</button>`:''}</div></div>`;
+            h+=`<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;"><div><div style="font-weight:bold;font-size:14px;">${isI?cName:f.description}</div><div style="font-size:10px;color:var(--text-muted);">${f.date}</div></div><div class="pin-row"><div style="font-weight:bold;color:${isI?'var(--success)':'var(--danger)'};">${isI?'+':'-'}₱${f.amount}</div>${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Funds', item_id: f.id, title: `${isI ? cName : f.description} (${f.amount})` })}${canManageFunds()?`<button class="danger" style="padding:4px 8px;margin:0;width:auto;" onclick="delDB('funds','${f.id}','Funds')">✖</button>`:''}</div></div>`;
         });
         c.innerHTML = h + `</div></div>`;
     }
-    window.addFund = async () => { const t=document.getElementById('fT').value, d=document.getElementById('fD').value, c=document.getElementById('fC').value, desc=document.getElementById('fDesc').value, a=document.getElementById('fA').value; if(!d || !a) return customAlert("Date and Amount required."); showLoader(true); await db.from('funds').insert([{workspace_id:currentWorkspace.workspace_id, type:t, date:d, contributor_id:c==='other'||!c?null:c, description:desc||(t==='in'?'Contribution':'Expense'), amount:a}]); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Funds'),800);">💰 @${userProfile.username} updated the ledger.</span>`); showLoader(false); renderModule('Funds'); };
+    window.addFund = async () => { if(!canManageFunds()) return customAlert("Funds feature is not enabled for this workspace."); const t=document.getElementById('fT').value, d=document.getElementById('fD').value, c=document.getElementById('fC').value, desc=document.getElementById('fDesc').value, a=document.getElementById('fA').value; if(!d || !a) return customAlert("Date and Amount required."); showLoader(true); await db.from('funds').insert([{workspace_id:currentWorkspace.workspace_id, type:t, date:d, contributor_id:c==='other'||!c?null:c, description:desc||(t==='in'?'Contribution':'Expense'), amount:a}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Funds'),800);">💰 @${userProfile.username} updated the ledger.</span>`); showLoader(false); renderModule('Funds'); };
 
     // --- MODULE: CALENDAR ---
     let currentCalDate = new Date();
     async function modCalendar(c) {
         showLoader(true); const [cal, tl] = await Promise.all([fetchWSData('calendar'), fetchWSData('timeline')]); showLoader(false);
-        let h = isAdmin() ? `<div class="glass admin-panel"><h4 style="margin-top:0;color:var(--accent);">Schedule Event</h4><div class="flex-row"><input id="ceT" placeholder="Event Title" style="flex:2;"><input id="ceD" type="date" style="flex:1;"><select id="ceTy" style="flex:1;"><option value="meeting">Meeting</option><option value="defense">Defense</option><option value="other">Other</option></select><button onclick="addCal()" style="flex:1;margin:0;">Schedule</button></div></div>` : '';
+        let h = '';
         
         let evs = [...cal]; tl.forEach(t=>{if(t.sched_date) evs.push({id:t.id, title:`Due: ${t.title}`, date:t.sched_date, type:'task'});});
         
@@ -1120,30 +1259,30 @@
         h += `<div class="glass card"><div class="collapse-header" onclick="toggleCol('calList')"><h3 class="neon" style="margin:0;">Upcoming</h3><span>▼</span></div><div id="calList" style="max-height:300px;overflow-y:auto;padding-right:5px; margin-top:10px;">`;
         evs.sort((a,b)=>new Date(a.date)-new Date(b.date));
         if(!evs.length) h+=`<p style="color:var(--text-muted);font-size:12px;">No events.</p>`;
-        evs.forEach(e=>{ h+=`<div style="padding:12px;background:var(--card-bg);border-left:4px solid ${e.type==='task'?'var(--secondary)':(e.type==='defense'?'var(--danger)':'var(--accent)')};margin-bottom:8px;border-radius:6px;display:flex;justify-content:space-between;"><div style="font-size:13px;"><b>${e.title}</b><br><span style="font-size:10px;color:var(--text-muted);">${e.date}</span></div>${isAdmin()&&e.type!=='task'?`<button class="danger" style="width:auto;padding:4px 8px;margin:0;" onclick="delDB('calendar','${e.id}','Calendar')">✖</button>`:''}</div>`; });
+        evs.forEach(e=>{ h+=`<div style="padding:12px;background:var(--card-bg);border-left:4px solid ${e.type==='task'?'var(--secondary)':(e.type==='defense'?'var(--danger)':'var(--accent)')};margin-bottom:8px;border-radius:6px;display:flex;justify-content:space-between;gap:10px;"><div style="font-size:13px;"><b>${e.title}</b><br><span style="font-size:10px;color:var(--text-muted);">${e.date}</span></div><div class="pin-row">${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Calendar', item_id: e.id, title: e.title, date: e.date })}${isAdmin()&&e.type!=='task'?`<button class="danger" style="width:auto;padding:4px 8px;margin:0;" onclick="delDB('calendar','${e.id}','Calendar')">✖</button>`:''}</div></div>`; });
         c.innerHTML = h + `</div></div></div>`;
     }
     window.changeCalMonth = (dir) => { currentCalDate.setMonth(currentCalDate.getMonth() + dir); renderModule('Calendar'); };
-    window.addCal = async () => { const t=document.getElementById('ceT').value, d=document.getElementById('ceD').value, ty=document.getElementById('ceTy').value; if(!t||!d) return; showLoader(true); await db.from('calendar').insert([{workspace_id:currentWorkspace.workspace_id, title:t, date:d, type:ty}]); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Calendar'),800);">📆 @${userProfile.username} scheduled: ${t}</span>`); showLoader(false); renderModule('Calendar'); };
+    window.addCal = async () => { const t=document.getElementById('ceT').value, d=document.getElementById('ceD').value, ty=document.getElementById('ceTy').value; if(!t||!d) return; showLoader(true); await db.from('calendar').insert([{workspace_id:currentWorkspace.workspace_id, title:t, date:d, type:ty}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Calendar'),800);">📆 @${userProfile.username} scheduled: ${t}</span>`); showLoader(false); renderModule('Calendar'); };
 
     // --- MODULE: RESOURCES ---
     async function modResources(c) {
         showLoader(true); const res = await fetchWSData('resources'); showLoader(false);
-        let h = isAdmin() ? `<div class="glass admin-panel"><div class="flex-row"><input id="rT" placeholder="Title" style="flex:2;"><select id="rTy" style="flex:1;" onchange="document.getElementById('rU').style.display=this.value==='link'?'block':'none';document.getElementById('rF').style.display=this.value==='file'?'block':'none';"><option value="link">Web Link</option><option value="file">Upload File</option></select><input id="rU" placeholder="URL" style="flex:2;"><input id="rF" type="file" style="flex:2;display:none;padding:9px;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button onclick="addRes()" style="flex:1;margin:0;">Add</button></div></div>` : '';
+        let h = '';
         h += `<div class="glass card"><h3 class="neon" style="margin-top:0;">Database</h3><div style="display:flex;flex-direction:column;gap:8px;">`;
         if(!res.length) h+=`<p style="color:var(--text-muted);">No resources.</p>`;
         res.sort((a,b)=>b.pinned-a.pinned).forEach(r=>{
-            h+=`<div style="display:flex;justify-content:space-between;padding:12px;background:var(--card-bg);border:1px solid ${r.pinned?'var(--warning)':'var(--glass-border)'};border-radius:8px;align-items:center;"><div><div style="font-weight:bold;font-size:14px;color:var(--text);">${r.pinned?'📌 ':''}${r.title}</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${r.type.toUpperCase()}</div></div><div style="display:flex;gap:8px;">${r.type==='file'?`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Download</button>`:`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Open</button>`}${isAdmin()?`<button class="danger" style="width:auto;padding:6px 12px;margin:0;" onclick="delDB('resources','${r.id}','Resources')">✖</button>`:''}</div></div>`;
+            h+=`<div style="display:flex;justify-content:space-between;padding:12px;background:var(--card-bg);border:1px solid ${r.pinned?'var(--warning)':'var(--glass-border)'};border-radius:8px;align-items:center;gap:10px;"><div><div style="font-weight:bold;font-size:14px;color:var(--text);">${r.pinned?'📌 ':''}${r.title}</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${r.type.toUpperCase()}</div></div><div class="pin-row">${r.type==='file'?`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Download</button>`:`<button class="success" style="width:auto;padding:6px 12px;margin:0;" onclick="window.open('${r.url}','_blank')">Open</button>`}${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Resources', item_id: r.id, title: r.title, url: r.url })}${isAdmin()?`<button class="danger" style="width:auto;padding:6px 12px;margin:0;" onclick="delDB('resources','${r.id}','Resources')">✖</button>`:''}</div></div>`;
         });
         c.innerHTML = h + `</div></div>`;
     }
-    window.addRes = async () => { const t=document.getElementById('rT').value, ty=document.getElementById('rTy').value, u=document.getElementById('rU').value, f=document.getElementById('rF'); if(!t) return customAlert("Title required."); showLoader(true); try{ let url=u, fn=null; if(ty==='file'){ if(!f.files.length) throw new Error("Select a file."); url = await uploadToCloudinary(f.files[0]); fn=f.files[0].name; } await db.from('resources').insert([{workspace_id:currentWorkspace.workspace_id, title:t, type:ty, url, file_name:fn}]); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Resources'),800);">🔗 @${userProfile.username} dropped a resource: ${t}</span>`); renderModule('Resources'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
+    window.addRes = async () => { const t=document.getElementById('rT').value, ty=document.getElementById('rTy').value, u=document.getElementById('rU').value, f=document.getElementById('rF'); if(!t) return customAlert("Title required."); showLoader(true); try{ let url=u, fn=null; if(ty==='file'){ if(!f.files.length) throw new Error("Select a file."); url = await uploadToCloudinary(f.files[0]); fn=f.files[0].name; } await db.from('resources').insert([{workspace_id:currentWorkspace.workspace_id, title:t, type:ty, url, file_name:fn}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Resources'),800);">🔗 @${userProfile.username} dropped a resource: ${t}</span>`); renderModule('Resources'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
 
     // --- MODULE: GALLERY ---
     let currentGalleryFolder = null;
     async function modGallery(c) {
         showLoader(true); const gal = await fetchWSData('gallery'); showLoader(false);
-        let h = isAdmin() ? `<div class="glass admin-panel"><div class="flex-row"><input id="gFolder" placeholder="Folder Name" value="${currentGalleryFolder||''}" style="flex:1;"><input id="gC" placeholder="Caption (Optional)" style="flex:1;"><input id="gF" type="file" accept="image/*" multiple style="flex:2;padding:9px;"><button onclick="addGal()" style="flex:1;margin:0;">Upload</button></div></div>` : '';
+        let h = '';
         
         h += `<div class="glass card">`;
         if(!currentGalleryFolder) {
@@ -1159,13 +1298,13 @@
             const fItems = gal.filter(g => (g.folder || 'Uncategorized') === currentGalleryFolder);
             if(!fItems.length) h+=`<p style="color:var(--text-muted);grid-column:1/-1;">Folder is empty.</p>`;
             fItems.forEach(g=>{
-                h+=`<div class="gallery-item" onclick="openLightbox('${g.url}','${g.caption}')"><img src="${g.url}"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);padding:8px;font-size:10px;color:#fff;">${g.caption}</div>${isAdmin()?`<button class="danger" style="position:absolute;top:5px;right:5px;width:auto;padding:2px 6px;margin:0;font-size:9px;" onclick="event.stopPropagation();delDB('gallery','${g.id}','Gallery')">✖</button>`:''}</div>`;
+                h+=`<div class="gallery-item" onclick="openLightbox('${g.url}','${g.caption}')"><img src="${g.url}"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);padding:8px;font-size:10px;color:#fff;">${g.caption}</div><div style="position:absolute;top:5px;left:5px;">${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Gallery', item_id: g.id, title: g.caption, url: g.url })}</div>${isAdmin()?`<button class="danger" style="position:absolute;top:5px;right:5px;width:auto;padding:2px 6px;margin:0;font-size:9px;" onclick="event.stopPropagation();delDB('gallery','${g.id}','Gallery')">✖</button>`:''}</div>`;
             });
         }
         c.innerHTML = h + `</div></div>`;
     }
     window.openGalFolder = (fName) => { currentGalleryFolder = fName; renderModule('Gallery'); };
-    window.addGal = async () => { const fld=document.getElementById('gFolder').value||'Uncategorized', c=document.getElementById('gC').value||'Untitled', f=document.getElementById('gF'); if(!f.files.length) return; showLoader(true); try{ for(let i=0;i<f.files.length;i++){ const u = await uploadToCloudinary(f.files[i]); await db.from('gallery').insert([{workspace_id:currentWorkspace.workspace_id, url:u, folder:fld, caption:f.files.length>1?`${c} (${i+1})`:c}]); } currentGalleryFolder = fld; notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Gallery'),800);">📸 @${userProfile.username} uploaded to Gallery.</span>`); renderModule('Gallery'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
+    window.addGal = async () => { const fld=document.getElementById('gFolder').value||'Uncategorized', c=document.getElementById('gC').value||'Untitled', f=document.getElementById('gF'); if(!f.files.length) return; showLoader(true); try{ for(let i=0;i<f.files.length;i++){ const u = await uploadToCloudinary(f.files[i]); await db.from('gallery').insert([{workspace_id:currentWorkspace.workspace_id, url:u, folder:fld, caption:f.files.length>1?`${c} (${i+1})`:c}]); } currentGalleryFolder = fld; hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Gallery'),800);">📸 @${userProfile.username} uploaded to Gallery.</span>`); renderModule('Gallery'); }catch(e){customAlert(e.message);} finally{showLoader(false);} };
     window.openLightbox = (u,c) => { document.getElementById('lightboxImg').src=u; document.getElementById('lightboxCaption').innerText=c; document.getElementById('lightboxModal').style.display='flex'; };
     window.closeLightbox = () => { document.getElementById('lightboxModal').style.display='none'; document.getElementById('lightboxImg').src=''; };
 
@@ -1186,7 +1325,7 @@
 
         try {
             if (type === 'users') {
-                const { data, error } = await db.from('profiles').select('id, username, full_name, avatar_url, status').or(`username.ilike.%${query}%,full_name.ilike.%${query}%`).limit(15);
+                const { data, error } = await db.from('profiles').select('id, username, full_name, avatar_url, status, contact_email, phone, messenger, github, bio').or(`username.ilike.%${query}%,full_name.ilike.%${query}%`).limit(15);
                 if(error) throw error;
                 const act = data.filter(u => u.status === 'active');
                 
@@ -1198,7 +1337,7 @@
                         <div onclick="openWorkspaceUserModal('${u.id}')" style="cursor:pointer; padding:15px; background:var(--card-bg); border-radius:10px; border: 1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.borderColor='var(--secondary)'" onmouseout="this.style.borderColor='var(--glass-border)'">
                             <div style="display:flex; align-items:center; gap: 12px;">
                                 <div class="avatar-wrapper" style="width:35px; height:35px;">${uAvatar}</div>
-                                <div><div style="font-weight:bold; font-size:15px; color: var(--secondary);">@${u.username}</div><div style="font-size:12px; color:var(--text-muted); margin-top: 4px;">${u.full_name}</div></div>
+                                <div><div style="font-weight:bold; font-size:15px; color: var(--secondary);">@${u.username}</div><div style="font-size:12px; color:var(--text-muted); margin-top: 4px;">${u.full_name}</div><div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;">${u.contact_email || 'No email'}<br>${u.phone || 'No phone'}${u.github ? `<br>${u.github}` : ''}${u.messenger ? `<br>${u.messenger}` : ''}</div></div>
                             </div>
                             <span style="font-size:16px; color:var(--text-muted);">➔</span>
                         </div>
@@ -1249,6 +1388,7 @@
             const av = prof.avatar_url ? `<img src="${prof.avatar_url}">` : svgs["User"];
             const sticker = prof.sticker || '👤';
             
+            const detailCards = getProfileContactDetails(prof).map(detail => `<div class="profile-detail"><strong>${detail.label}</strong>${detail.value}</div>`).join('');
             let html = `
                 <div style="display:flex; justify-content:flex-start; margin-bottom: 10px;">
                     <button style="background:transparent; border:none; color:var(--text-muted); width:auto; padding:0; font-size:14px; display:flex; align-items:center; gap:5px;" onclick="hideModal('userProfileModal'); showModal('searchModal');">
@@ -1265,13 +1405,8 @@
                     <div style="color:var(--secondary); font-size:14px; margin-top:4px;">@${prof.username}</div>
                     ${wsRoleObj ? `<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight:bold;">${wsRoleObj.display_role} <span style="font-weight:normal;">(${wsRoleObj.role})</span></div>` : ''}
                     ${prof.bio ? `<p style="font-size:12px; color:var(--text-muted); font-style:italic; margin:15px 0 0 0;">"${prof.bio}"</p>` : ''}
-                    
-                    <div style="display:flex; justify-content:center; gap:10px; margin-top:15px;">
-                        ${prof.contact_email ? `<a href="mailto:${prof.contact_email}" style="font-size:18px; text-decoration:none;" title="Email">✉️</a>` : ''}
-                        ${prof.messenger ? `<a href="${prof.messenger}" target="_blank" style="font-size:18px; text-decoration:none;" title="Messenger">💬</a>` : ''}
-                        ${prof.github ? `<a href="${prof.github}" target="_blank" style="font-size:18px; text-decoration:none;" title="GitHub">🐙</a>` : ''}
-                        ${prof.phone ? `<a href="tel:${prof.phone}" style="font-size:18px; text-decoration:none;" title="Call">📞</a>` : ''}
-                    </div>
+                    <div class="profile-detail-grid">${detailCards}</div>
+                    ${renderPinnedSection(targetId)}
                 </div>
             `;
 
@@ -1320,7 +1455,7 @@
                 else {
                     targetWs.forEach(w => {
                         const wAv = w.photo_url ? `<img src="${w.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `📁`;
-                        html += `<div style="display:flex; align-items:center; gap:10px; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--glass-border);"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center; font-size:16px;">${wAv}</div><span style="font-size:14px; font-weight:bold;">${w.name}</span></div>`;
+                        html += `<div style="display:flex; align-items:center; gap:10px; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--glass-border);"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center; font-size:16px;">${wAv}</div><div><div style="font-size:14px; font-weight:bold;">${w.name}</div><div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Visible only as profile info. Workspace entry is disabled here.</div></div></div>`;
                     });
                 }
                 html += `</div></div>`;
@@ -1350,7 +1485,7 @@
             } else if (targetId === sessionUser.id && !currentWorkspace) {
                 html += `<div style="text-align:center; padding-top:10px;"><button style="background:transparent; border:1px solid var(--glass-border); color:var(--text);" onclick="openProfileSettings()">⚙️ Edit My Profile</button></div>`;
             }
-
+            document.getElementById('userProfileModalContent').dataset.userId = targetId;
             document.getElementById('userProfileModalContent').innerHTML = html;
             showModal('userProfileModal');
         } catch(e) {
@@ -1401,11 +1536,38 @@
         } 
         catch(e) { if(el) el.style.display = 'flex'; customAlert(e.message); } 
     };
+    window.switchSATab = (targetId, btn) => {
+        ['saUsersAll', 'saUsersWarned', 'saUsersBanned', 'saWorkspaces'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = id === targetId ? 'block' : 'none';
+        });
+        btn.closest('.tab-row').querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
+        btn.classList.add('active');
+    };
+    window.delDB = async (table, id, mod) => {
+        if(table === 'funds' && !canManageFunds()) return customAlert("Funds feature is not enabled for this workspace.");
+        const label = table === 'workspaces' ? 'workspace' : 'item';
+        customConfirm(`Delete this ${label}?`, async () => {
+            showLoader(true, 'Deleting...');
+            try {
+                const { error } = await db.from(table).delete().eq('id', id);
+                if(error) throw error;
+                if(table === 'workspaces') await loadSuperAdmin();
+                else renderModule(mod);
+            } catch (e) {
+                customAlert(e.message);
+            } finally {
+                showLoader(false);
+            }
+        });
+    };
 
     // --- SUPER ADMIN ---
     async function loadSuperAdmin() {
         if (userProfile.role !== 'superadmin') return;
+        if(!(await ensureSuperAdminAccess())) return;
         document.getElementById('viewTitle').innerText = "Command Center";
+        document.getElementById('moduleFab').style.display = 'none';
         
         showLoader(true, "Aggregating Global Network Data...");
         try {
@@ -1413,13 +1575,16 @@
                 { data: pendingWs },
                 { data: allUsers },
                 { data: allMembers },
-                { data: activeWorkspaces }
+                { data: allWorkspaces }
             ] = await Promise.all([
                 db.from('workspaces').select('*').eq('status', 'pending'),
                 db.from('profiles').select('*'),
                 db.from('workspace_members').select('user_id, workspace_id, status').eq('status', 'active'),
-                db.from('workspaces').select('id, name, photo_url, profiles!created_by(username)').eq('status', 'active')
+                db.from('workspaces').select('id, name, photo_url, status, features, profiles!created_by(username)')
             ]);
+            const activeWorkspaces = (allWorkspaces || []).filter(ws => ws.status === 'active');
+            const warnedUsers = (allUsers || []).filter(u => !!u.warning_message);
+            const bannedUsers = (allUsers || []).filter(u => u.status === 'banned');
 
             let userCounts = {}; let wsCounts = {};
             (allMembers||[]).forEach(m => {
@@ -1451,7 +1616,6 @@
             html += `</div></div></div>`;
 
             html += `<div class="grid-2">`;
-            
             html += `<div class="glass card"><div class="collapse-header" onclick="toggleCol('saAuth')"><h3 class="neon" style="color:#f59e0b; margin:0;">Environment Authorizations</h3><span>▼</span></div><div id="saAuth" style="margin-top:10px;">`;
             if(!pendingWs || pendingWs.length === 0) html += `<p style="font-size:13px; color:var(--text-muted); text-align:center; padding: 20px;">No pending requests.</p>`;
             else {
@@ -1461,11 +1625,10 @@
             }
             html += `</div></div>`;
 
-            html += `<div class="glass card"><div class="collapse-header" onclick="toggleCol('saReg')"><h3 class="neon" style="margin:0;">Global Registry & Security</h3><span>▼</span></div><div id="saReg" style="max-height: 400px; overflow-y:auto; padding-right:5px; margin-top:10px;">`;
-            if(allUsers) {
-                allUsers.forEach(u => {
+            html += `<div class="glass card"><div class="collapse-header" onclick="toggleCol('saReg')"><h3 class="neon" style="margin:0;">Global Registry & Security</h3><span>▼</span></div><div id="saReg" style="margin-top:10px;"><div class="tab-row"><button class="tab-btn active" onclick="switchSATab('saUsersAll', this)">All Accounts</button><button class="tab-btn" onclick="switchSATab('saUsersWarned', this)">Warned Accounts</button><button class="tab-btn" onclick="switchSATab('saUsersBanned', this)">Banned Accounts</button><button class="tab-btn" onclick="switchSATab('saWorkspaces', this)">Workspaces</button></div>`;
+            const renderUserRows = (users) => !users.length ? `<p style="font-size:12px;color:var(--text-muted);">No accounts in this filter.</p>` : users.map(u => {
                     const uAvatar = u.avatar_url ? `<img src="${u.avatar_url}">` : svgs["User"]; const isBanned = u.status === 'banned';
-                    html += `
+                    return `
                     <div style="padding:15px; border-bottom:1px solid var(--glass-border); background:var(--card-bg); margin-bottom:10px; border-radius:8px; opacity: ${isBanned ? '0.5' : '1'};">
                         <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 10px;">
                             <div style="display:flex; align-items:center; gap: 12px; cursor:pointer;" onclick="openWorkspaceUserModal('${u.id}')">
@@ -1480,17 +1643,17 @@
                             </div>
                         ` : '<div style="font-size:11px; color:var(--secondary); text-align:center;">Security Clearance: MAX</div>'}
                     </div>`;
-                });
-            }
-            html += `</div></div></div>`;
-            
-            html+= `<div class="glass card"><div class="collapse-header" onclick="toggleCol('saEnv')"><h3 class="neon" style="margin:0;">Global Environment Registry</h3><span>▼</span></div><div id="saEnv" style="max-height:300px; overflow-y:auto; padding-right:5px; margin-top:10px;">`;
-            if(!activeWorkspaces || !activeWorkspaces.length) html+= `<p style="font-size:12px;color:var(--text-muted);">No environments exist.</p>`;
-            activeWorkspaces?.forEach(w=>{
+                }).join('');
+            html += `<div id="saUsersAll">${renderUserRows(allUsers || [])}</div>`;
+            html += `<div id="saUsersWarned" style="display:none;">${renderUserRows(warnedUsers)}</div>`;
+            html += `<div id="saUsersBanned" style="display:none;">${renderUserRows(bannedUsers)}</div>`;
+            html += `<div id="saWorkspaces" style="display:none; max-height:400px; overflow-y:auto; padding-right:5px;">`;
+            if(!allWorkspaces || !allWorkspaces.length) html+= `<p style="font-size:12px;color:var(--text-muted);">No environments exist.</p>`;
+            allWorkspaces?.forEach(w=>{
                 const wAv = w.photo_url ? `<img src="${w.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `📁`;
-                html+= `<div style="padding:12px; border:1px solid var(--glass-border); background:var(--card-bg); margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="enterWorkspaceAsSuperAdmin('${w.id}')"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center;">${wAv}</div><div><div style="font-weight:bold; color:var(--secondary);">${w.name}</div><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Creator: @${w.profiles?.username || 'Unknown'} &bull; Status: ${w.status}</div></div></div><button class="danger" style="width:auto; padding:6px 12px; margin:0; font-size:10px;" onclick="delDB('workspaces', '${w.id}', 'Lobby')">Purge</button></div>`;
+                html+= `<div style="padding:12px; border:1px solid var(--glass-border); background:var(--card-bg); margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;"><div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="enterWorkspaceAsSuperAdmin('${w.id}')"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center;">${wAv}</div><div><div style="font-weight:bold; color:var(--secondary);">${w.name}</div><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Creator: @${w.profiles?.username || 'Unknown'} • Status: ${w.status}</div><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Features: ${(w.features || []).join(', ') || 'None'}</div></div></div><div class="pin-row"><button class="success" style="width:auto; padding:6px 12px; margin:0; font-size:10px;" onclick="enterWorkspaceAsSuperAdmin('${w.id}')">Open</button><button class="danger" style="width:auto; padding:6px 12px; margin:0; font-size:10px;" onclick="delDB('workspaces', '${w.id}', 'Lobby')">Purge</button></div></div>`;
             });
-            html+= `</div></div>`;
+            html+= `</div></div></div>`;
 
             document.getElementById('contentArea').innerHTML=html; 
         } catch(err) { customAlert("Command Center Load Error: " + err.message); } finally { showLoader(false); }
