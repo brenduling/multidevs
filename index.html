@@ -344,6 +344,20 @@
     <div id="actionFormModal" class="modal-overlay">
         <div class="modal-content" id="actionFormContent"></div>
     </div>
+    <div id="superAdminPasswordModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="neon" style="margin-top:0;">Super Admin Verification</h3>
+            <p style="font-size:13px; color:var(--text-muted);">Enter the super admin password to open privileged workspace visibility.</p>
+            <div style="position:relative;">
+                <input id="superAdminPasswordInput" type="password" placeholder="Super Admin Password" onkeydown="if(event.key === 'Enter') submitSuperAdminPassword()">
+                <span class="pwd-toggle" onclick="togglePwd('superAdminPasswordInput')">👁️</span>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:15px;">
+                <button class="danger" onclick="cancelSuperAdminPassword()">Cancel</button>
+                <button class="success" onclick="submitSuperAdminPassword()">Verify</button>
+            </div>
+        </div>
+    </div>
     <button id="moduleFab" class="success fab-add" onclick="openActionForm(currentModule)">+</button>
 
 <script>
@@ -391,6 +405,8 @@
 
     let sessionUser = null; let userProfile = null; let currentWorkspace = null; let myWorkspaces = []; let wsMembersFull = [];
     let isViewerMode = false; 
+    let personalLobbyItems = [];
+    let profileDirectory = [];
     const availableFeatures = ['Dashboard', 'Gallery', 'Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links'];
     const modulesWithAddAction = new Set(['Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links', 'Gallery']);
     const PIN_STORAGE_KEY = 'dadevs_pinned_items_v1';
@@ -448,6 +464,75 @@
             { label: 'GitHub', value: prof.github || 'Not provided' }
         ];
     }
+    function getProfileByUsername(username) {
+        return profileDirectory.find(profile => profile.username?.toLowerCase() === username.toLowerCase()) || wsMembersFull.find(member => member.profile.username?.toLowerCase() === username.toLowerCase())?.profile || null;
+    }
+    function renderProfileChip(profile) {
+        const avatar = profile.avatar_url ? `<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : svgs["User"];
+        return `<span style="display:inline-flex;align-items:center;vertical-align:middle; margin-right:6px; cursor:pointer;" onclick="openWorkspaceUserModal('${profile.id}')"><span class="avatar-wrapper" style="width:24px;height:24px;border-color:var(--secondary);">${avatar}</span></span>`;
+    }
+    function renderTextWithMentions(text) {
+        if(!text) return '';
+        return escapeHtml(text).replace(/@([a-z0-9_]+)/gi, (_, username) => {
+            const profile = getProfileByUsername(username);
+            return profile ? `${renderProfileChip(profile)}` : `@${username}`;
+        });
+    }
+    async function loadPersonalLobbyItems() {
+        if(!sessionUser) return personalLobbyItems = [];
+        const workspaceIds = myWorkspaces.map(w => w.workspace_id);
+        if(!workspaceIds.length) return personalLobbyItems = [];
+        const [
+            { data: tasks, error: taskErr },
+            { data: funds, error: fundErr }
+        ] = await Promise.all([
+            db.from('timeline').select('id, workspace_id, title, sched_date, progress').in('workspace_id', workspaceIds).eq('owner', sessionUser.id),
+            db.from('funds').select('id, workspace_id, type, date, amount, description, contributor_id').in('workspace_id', workspaceIds).eq('contributor_id', sessionUser.id)
+        ]);
+        if(taskErr) throw taskErr;
+        if(fundErr) throw fundErr;
+        const workspaceNameMap = Object.fromEntries(myWorkspaces.map(w => [w.workspace_id, w.workspaces.name]));
+        personalLobbyItems = [
+            ...(tasks || []).map(task => ({
+                kind: 'task',
+                workspace_id: task.workspace_id,
+                workspace_name: workspaceNameMap[task.workspace_id] || 'Workspace',
+                title: task.title,
+                date: task.sched_date,
+                progress: task.progress,
+                item_id: task.id
+            })),
+            ...(funds || []).map(fund => ({
+                kind: 'fund',
+                workspace_id: fund.workspace_id,
+                workspace_name: workspaceNameMap[fund.workspace_id] || 'Workspace',
+                title: fund.description || 'Contribution',
+                date: fund.date,
+                amount: fund.amount,
+                type: fund.type,
+                item_id: fund.id
+            }))
+        ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    }
+    async function requestSuperAdminPassword() {
+        return new Promise(resolve => {
+            window.__resolveSuperAdminPassword = resolve;
+            document.getElementById('superAdminPasswordInput').value = '';
+            showModal('superAdminPasswordModal');
+            setTimeout(() => document.getElementById('superAdminPasswordInput').focus(), 50);
+        });
+    }
+    window.submitSuperAdminPassword = () => {
+        const value = document.getElementById('superAdminPasswordInput').value;
+        hideModal('superAdminPasswordModal');
+        if(window.__resolveSuperAdminPassword) window.__resolveSuperAdminPassword(value);
+        window.__resolveSuperAdminPassword = null;
+    };
+    window.cancelSuperAdminPassword = () => {
+        hideModal('superAdminPasswordModal');
+        if(window.__resolveSuperAdminPassword) window.__resolveSuperAdminPassword('');
+        window.__resolveSuperAdminPassword = null;
+    };
     function renderPinnedSection(targetId) {
         if(targetId !== sessionUser?.id) return '';
         const pins = getMyPinnedItems();
@@ -477,7 +562,7 @@
     async function ensureSuperAdminAccess() {
         if(userProfile?.role !== 'superadmin') return false;
         if(Date.now() < superAdminAccessUntil) return true;
-        const password = prompt('Enter superadmin password to continue:');
+        const password = await requestSuperAdminPassword();
         if(!password) return false;
         showLoader(true, 'Verifying superadmin access...');
         try {
@@ -499,7 +584,7 @@
         if(mod === 'Sprint Board') {
             html = `<h3 class="neon" style="margin-top:0;">Create Sprint</h3><div class="flex-row"><input id="smN" placeholder="Name" style="flex:2;"><input id="smW" type="number" placeholder="Weeks" style="flex:1;"><input id="smP" placeholder="Phase" style="flex:2;"></div><div class="flex-row"><textarea id="smO" placeholder="Objectives" style="flex:1;height:80px;"></textarea><textarea id="smD" placeholder="Deliverables" style="flex:1;height:80px;"></textarea></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addSprint()">Create</button></div>`;
         } else if(mod === 'Timeline') {
-            html = `<h3 class="neon" style="margin-top:0;">Add Task</h3><div class="flex-row"><input id="tlP" placeholder="Phase" style="flex:1;"><input id="tlT" placeholder="Task Name" style="flex:2;"><select id="tlO" style="flex:1;"><option value="">Team (Unassigned)</option>${memOpts}</select><input id="tlProg" type="number" placeholder="Prog %" style="flex:1;"></div><div class="flex-row"><input id="tlS" type="date" title="Start" style="flex:1;"><input id="tlD" type="date" title="Scheduled" style="flex:1;"><input id="tlE" type="date" title="Actual End" style="flex:1;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addTL()">Add Task</button></div>`;
+            html = `<h3 class="neon" style="margin-top:0;">Add Task</h3><div class="flex-row"><input id="tlP" placeholder="Phase" style="flex:1;"><input id="tlT" placeholder="Task Name" style="flex:2;"><select id="tlO" style="flex:1;"><option value="">Team (Unassigned)</option>${memOpts}</select><input id="tlProg" type="number" min="0" max="100" placeholder="Prog %" style="flex:1;"></div><div class="flex-row"><input id="tlS" type="date" title="Start" style="flex:1;"><input id="tlD" type="date" title="Scheduled" style="flex:1;"><input id="tlE" type="date" title="Actual End" style="flex:1;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addTL()">Add Task</button></div>`;
         } else if(mod === 'Funds') {
             html = `<h3 class="neon" style="margin-top:0;">Record Transaction</h3><div class="flex-row"><select id="fT" style="flex:1;"><option value="in">Income (+)</option><option value="out">Expense (-)</option></select><input id="fD" type="date" style="flex:1;"><select id="fC" style="flex:2;"><option value="" disabled selected>Contributor...</option><option value="other">Other/Misc</option>${memOpts}</select></div><div class="flex-row"><input id="fDesc" placeholder="Description" style="flex:2;"><input id="fA" type="number" placeholder="Amt ₱" style="flex:1;"></div><div style="display:flex;gap:12px;margin-top:15px;"><button class="danger" onclick="hideModal('actionFormModal')">Cancel</button><button class="success" onclick="addFund()">Record</button></div>`;
         } else if(mod === 'Calendar') {
@@ -715,15 +800,55 @@
                 if(wsErr) throw wsErr;
                 myWorkspaces = wm.map(m => ({ ...m, workspaces: wsData.find(w=>w.id===m.workspace_id) })).filter(w=>w.workspaces);
             }
+            const { data: profilesData } = await db.from('profiles').select('id, username, full_name, avatar_url, sticker');
+            profileDirectory = profilesData || [];
+            await loadPersonalLobbyItems();
             renderLobbyUI(); populateFeatureCheckboxes('featureList');
         } catch(err) { document.getElementById('contentArea').innerHTML = `<div class="glass card danger"><h3>Connection Failure</h3><p>${err.message}</p></div>`; }
     }
 
     function renderLobbyUI() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const personalTasks = personalLobbyItems.filter(item => item.kind === 'task');
+        const finishedTasks = personalTasks.filter(item => Number(item.progress || 0) >= 100);
+        const upcomingTasks = personalTasks.filter(item => {
+            if(Number(item.progress || 0) >= 100 || !item.date) return false;
+            const targetDate = new Date(item.date);
+            targetDate.setHours(0, 0, 0, 0);
+            return targetDate >= today;
+        });
+        const unfinishedTasks = personalTasks.filter(item => Number(item.progress || 0) < 100);
+        const taskGroups = [
+            { id: 'ptmUpcoming', label: 'Upcoming Schedules', items: upcomingTasks, active: true, empty: 'No upcoming schedules.' },
+            { id: 'ptmUnfinished', label: 'Unfinished Task', items: unfinishedTasks, active: false, empty: 'No unfinished task.' },
+            { id: 'ptmFinished', label: 'Finished Task', items: finishedTasks, active: false, empty: 'No finished task yet.' }
+        ];
+        const renderPersonalTaskCard = (item) => `
+            <div onclick="enterWorkspace('${item.workspace_id}')" style="padding:12px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;">
+                <div>
+                    <div style="font-weight:bold; color:var(--text);">${escapeHtml(item.title)}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${escapeHtml(item.workspace_name)} • ${escapeHtml(item.date || 'No date')}</div>
+                </div>
+                <div style="text-align:right; font-size:12px;">
+                    <div style="color:${Number(item.progress || 0) >= 100 ? 'var(--success)' : 'var(--secondary)'}; font-weight:bold;">${Number(item.progress || 0)}%</div>
+                </div>
+            </div>
+        `;
+        const personalItemsHtml = taskGroups.map(group => `
+            <div id="${group.id}" style="display:${group.active ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+                ${group.items.length ? group.items.map(renderPersonalTaskCard).join('') : `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin:25px 0;">${group.empty}</p>`}
+            </div>
+        `).join('');
+        const taskNavHtml = `
+            <div class="tab-row" style="margin:12px 0 0 0;">
+                ${taskGroups.map(group => `<button class="tab-btn ${group.active ? 'active' : ''}" onclick="switchPersonalTaskTab('${group.id}', this)">${group.label} (${group.items.length})</button>`).join('')}
+            </div>
+        `;
         let html = `<div class="grid-2"><div class="glass card" style="text-align:center; position:relative;"><h3 class="neon" style="margin-top:0;font-size:24px;">Identification</h3>`;
         html += `<button class="icon-btn" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:var(--text); font-size:18px; padding:0; width:auto;" onclick="openProfileSettings()" title="Settings">⚙️</button>`;
         html += `<div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;"><div style="position:relative;"><div class="avatar-wrapper" style="width:90px;height:90px;border-color:var(--secondary);">${userProfile.avatar_url ? `<img src="${userProfile.avatar_url}">` : svgs["User"]}</div><div style="position:absolute; bottom:-5px; right:-5px; font-size:24px; background:var(--bg-1); border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; border:2px solid var(--glass-border);">${userProfile.sticker||'👤'}</div></div><label style="margin-top:16px;font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics<input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)"></label></div><div style="background:var(--card-bg);padding:15px;border-radius:12px;border:1px solid var(--glass-border);width:100%;box-sizing:border-box;"><div style="font-size:18px;font-weight:bold;">${userProfile.full_name}</div><div style="font-size:14px;color:var(--secondary);margin-top:6px;">@${userProfile.username}</div>${userProfile.bio?`<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-style:italic;">"${userProfile.bio}"</div>`:''}<div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-transform:uppercase;font-weight:bold;">Access: ${userProfile.role}</div></div><div style="display:flex;gap:10px;margin-top:20px;width:100%;"><button onclick="showModal('createWsModal')" style="flex:1;">+ Provision Workspace</button></div><div style="display:flex;gap:10px;margin-top:10px;width:100%;"><button class="warning" style="flex:1;" onclick="showProfilePins()">Pinned Items</button></div>${userProfile.role==='superadmin'?`<button class="success" style="margin-top:10px;" onclick="loadSuperAdmin()">👑 Super Admin Command</button>`:''}</div>`;
-        html += `<div class="glass card" style="display:flex;flex-direction:column;"><div class="collapse-header" onclick="toggleCol('envList')"><h3 class="neon" style="margin:0;font-size:22px;">Active Environments</h3><div style="display:flex; align-items:center; gap:10px;"><span style="font-size:12px;color:var(--text-muted);font-weight:bold;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${myWorkspaces.length}/10</span><span>▼</span></div></div><div id="envList" style="flex:1;max-height:400px;overflow-y:auto;padding-right:5px; margin-top:10px;">`;
+        html += `<div class="glass card" style="display:flex;flex-direction:column;"><div class="collapse-header" onclick="toggleCol('personalItems')"><h3 class="neon" style="margin:0;font-size:22px;">Personal Task Manager</h3><div style="display:flex; align-items:center; gap:10px;"><span style="font-size:12px;color:var(--text-muted);font-weight:bold;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${personalTasks.length}</span><span>▼</span></div></div>${taskNavHtml}<div id="personalItems" style="max-height:260px;overflow-y:auto;padding-right:5px; margin-top:10px;">${personalItemsHtml}</div><div class="collapse-header" onclick="toggleCol('envList')" style="margin-top:16px;"><h3 class="neon" style="margin:0;font-size:22px;">Active Environments</h3><div style="display:flex; align-items:center; gap:10px;"><span style="font-size:12px;color:var(--text-muted);font-weight:bold;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${myWorkspaces.length}/10</span><span>▼</span></div></div><div id="envList" style="flex:1;max-height:400px;overflow-y:auto;padding-right:5px; margin-top:10px;">`;
         if(!myWorkspaces.length) html += `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:40px;">No environments detected.</p>`;
         else myWorkspaces.forEach(ws => {
             const w = ws.workspaces, av = w.photo_url ? `<img src="${w.photo_url}">` : w.name.charAt(0).toUpperCase();
@@ -733,14 +858,22 @@
         });
         document.getElementById('contentArea').innerHTML = html + `</div></div></div>`;
     }
+    window.switchPersonalTaskTab = (targetId, btn) => {
+        ['ptmUpcoming', 'ptmUnfinished', 'ptmFinished'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = id === targetId ? 'flex' : 'none';
+        });
+        btn.closest('.tab-row').querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
+        btn.classList.add('active');
+    };
 
     // Updated toggle logic to hide/show Fund Settings
     window.handleFeatureToggle = (cb) => {
         limitFeatures(cb);
-        const modal = cb.closest('.modal-content');
-        const hasFunds = Array.from(modal.querySelectorAll('.ws-feature-cb:checked')).some(c => c.value === 'Funds');
-        const fundUI = modal.querySelector('.fund-settings-container');
-        if(fundUI) fundUI.style.display = hasFunds ? 'block' : 'none';
+        const modalContent = cb.closest('.modal-content');
+        const overlay = cb.closest('.modal-overlay');
+        const fundUI = modalContent.querySelector('.fund-settings-container');
+        if(fundUI) fundUI.style.display = overlay?.id === 'editWsModal' && Array.from(modalContent.querySelectorAll('.ws-feature-cb:checked')).some(c => c.value === 'Funds') ? 'block' : 'none';
     }
 
     function populateFeatureCheckboxes(containerId = 'featureList') { 
@@ -752,8 +885,6 @@
     async function submitWorkspace() {
         if(myWorkspaces.length >= 10) return customAlert("Environment limit reached (10).");
         const n = document.getElementById('wsName').value.trim(), f = Array.from(document.getElementById('createWsModal').querySelectorAll('.ws-feature-cb:checked')).map(cb=>cb.value), file = document.getElementById('wsPhotoFile');
-        const fAmt = document.getElementById('wsFundAmt') ? document.getElementById('wsFundAmt').value : 50;
-        const fFreq = document.getElementById('wsFundFreq') ? document.getElementById('wsFundFreq').value : 'Weekly';
         
         if(!n || !f.length) return customAlert("Designation and at least 1 module required.");
         showLoader(true, "Allocating Server Space...");
@@ -762,7 +893,7 @@
             const id = n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase() + '-' + Math.random().toString(36).substring(2,6);
             
             const fundsEnabled = f.includes('Funds');
-            const {error: wsErr} = await db.from('workspaces').insert([{ id, name: n, photo_url: url, features: f, status: 'pending', created_by: sessionUser.id, fund_amount: fundsEnabled ? fAmt : null, fund_frequency: fundsEnabled ? fFreq : null }]);
+            const {error: wsErr} = await db.from('workspaces').insert([{ id, name: n, photo_url: url, features: f, status: 'pending', created_by: sessionUser.id, fund_amount: fundsEnabled ? 50 : null, fund_frequency: fundsEnabled ? 'Weekly' : null }]);
             if(wsErr) throw wsErr;
             
             const {error: memErr} = await db.from('workspace_members').insert([{ workspace_id: id, user_id: sessionUser.id, role: 'admin', status: 'active', display_role: 'Creator' }]);
@@ -1166,6 +1297,10 @@
     }
     window.addSprint = async () => { const n=document.getElementById('smN').value, w=document.getElementById('smW').value, p=document.getElementById('smP').value, o=document.getElementById('smO').value, d=document.getElementById('smD').value; if(!n) return customAlert("Name required"); showLoader(true); await db.from('sprints').insert([{workspace_id:currentWorkspace.workspace_id, name:n, weeks:w||1, phase:p||'None', objectives:o||'TBD', deliverables:d||'TBD'}]); hideModal('actionFormModal'); notifyWorkspace(`<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="enterWorkspace('${currentWorkspace.workspace_id}'); setTimeout(()=>renderModule('Sprint Board'),800);">📋 @${userProfile.username} mapped Sprint: ${n}</span>`); showLoader(false); renderModule('Sprint Board'); };
     window.updDB = async (t, id, updates, mod) => { if(t === 'funds' && !canManageFunds()) return customAlert("Funds feature is not enabled for this workspace."); showLoader(true); await db.from(t).update(updates).eq('id',id); renderModule(mod); };
+    window.updTimelineProgress = async (id, value) => {
+        const progress = Math.max(0, Math.min(100, Number(value) || 0));
+        await updDB('timeline', id, { progress }, 'Timeline');
+    };
 
     // --- MODULE: TIMELINE ---
     async function modTimeline(c) {
@@ -1182,10 +1317,11 @@
                 const sT = new Date(t.start_date).getTime(), scT = new Date(t.sched_date).getTime(), eT = t.end_date?new Date(t.end_date).getTime():scT;
                 const lP = ((sT-min)/span)*100, wP = Math.max(2, ((eT-sT)/span)*100), scP = ((scT-min)/span)*100;
                 const done = t.progress === 100, late = done && eT>scT, col = done ? (late?'#ef4444':'#10b981') : 'var(--primary)';
-                const ownerName = t.owner ? (wsMembersFull.find(m=>m.user_id===t.owner)?.profile.full_name || 'Unknown') : 'Team';
-                let progUI = isAdmin() ? `<select onchange="updDB('timeline','${t.id}',{progress:this.value},'Timeline')" style="padding:4px; font-size:10px; margin:0; width:auto;"><option value="0" ${t.progress==0?'selected':''}>0%</option><option value="25" ${t.progress==25?'selected':''}>25%</option><option value="50" ${t.progress==50?'selected':''}>50%</option><option value="75" ${t.progress==75?'selected':''}>75%</option><option value="100" ${t.progress==100?'selected':''}>100%</option></select>` : `${t.progress}%`;
+                const ownerProfile = t.owner ? wsMembersFull.find(m=>m.user_id===t.owner)?.profile : null;
+                const ownerName = ownerProfile ? renderProfileChip(ownerProfile) : 'Team';
+                let progUI = isAdmin() ? `<input type="number" min="0" max="100" value="${t.progress || 0}" onblur="updTimelineProgress('${t.id}', this.value)" style="padding:4px; font-size:10px; margin:0; width:70px;">` : `${t.progress}%`;
                 let delBtn = isAdmin() ? `<td><button class="danger" style="padding:4px 8px;margin:0;width:auto;font-size:10px;" onclick="delDB('timeline','${t.id}','Timeline')">✖</button></td>` : '';
-                h+=`<tr><td style="font-weight:bold; white-space:normal;">${t.title}<div style="margin-top:8px;">${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Timeline', item_id: t.id, title: t.title })}</div></td><td style="color:var(--secondary);">${ownerName}</td><td>${t.start_date||'--'}</td><td>${t.sched_date||'--'}</td><td style="color:${col};">${t.end_date||'--'}</td><td>${progUI}</td><td><div class="gantt-track"><div style="position:absolute;left:${lP}%;width:${wP}%;background:${col};height:100%;opacity:0.8;"></div><div style="position:absolute;left:${scP}%;width:2px;background:var(--accent);height:100%;z-index:2;"></div></div></td>${delBtn}</tr>`;
+                h+=`<tr><td style="font-weight:bold; white-space:normal;">${renderTextWithMentions(t.title)}<div style="margin-top:8px;">${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Timeline', item_id: t.id, title: t.title })}</div></td><td style="color:var(--secondary);">${ownerName}</td><td>${t.start_date||'--'}</td><td>${t.sched_date||'--'}</td><td style="color:${col};">${t.end_date||'--'}</td><td>${progUI}</td><td><div class="gantt-track"><div style="position:absolute;left:${lP}%;width:${wP}%;background:${col};height:100%;opacity:0.8;"></div><div style="position:absolute;left:${scP}%;width:2px;background:var(--accent);height:100%;z-index:2;"></div></div></td>${delBtn}</tr>`;
             });
             h+=`</table>`;
         }
@@ -1210,7 +1346,9 @@
         if(!funds.length) h+=`<p style="color:var(--text-muted);font-size:12px;">No transactions.</p>`;
         funds.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(f=>{
             const isI = f.type==='in', cName = f.contributor_id ? (wsMembersFull.find(m=>m.user_id===f.contributor_id)?.profile.full_name || 'Unknown') : 'Misc';
-            h+=`<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;"><div><div style="font-weight:bold;font-size:14px;">${isI?cName:f.description}</div><div style="font-size:10px;color:var(--text-muted);">${f.date}</div></div><div class="pin-row"><div style="font-weight:bold;color:${isI?'var(--success)':'var(--danger)'};">${isI?'+':'-'}₱${f.amount}</div>${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Funds', item_id: f.id, title: `${isI ? cName : f.description} (${f.amount})` })}${canManageFunds()?`<button class="danger" style="padding:4px 8px;margin:0;width:auto;" onclick="delDB('funds','${f.id}','Funds')">✖</button>`:''}</div></div>`;
+            const contributorProfile = f.contributor_id ? wsMembersFull.find(m=>m.user_id===f.contributor_id)?.profile : null;
+            const labelHtml = isI ? (contributorProfile ? renderProfileChip(contributorProfile) : escapeHtml(cName)) : renderTextWithMentions(f.description);
+            h+=`<div style="display:flex;justify-content:space-between;padding:10px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;"><div><div style="font-weight:bold;font-size:14px;">${labelHtml}</div><div style="font-size:10px;color:var(--text-muted);">${f.date}</div></div><div class="pin-row"><div style="font-weight:bold;color:${isI?'var(--success)':'var(--danger)'};">${isI?'+':'-'}₱${f.amount}</div>${renderPinButton({ workspace_id: currentWorkspace.workspace_id, workspace_name: currentWorkspace.workspaces.name, module: 'Funds', item_id: f.id, title: `${isI ? cName : f.description} (${f.amount})` })}${canManageFunds()?`<button class="danger" style="padding:4px 8px;margin:0;width:auto;" onclick="delDB('funds','${f.id}','Funds')">✖</button>`:''}</div></div>`;
         });
         c.innerHTML = h + `</div></div>`;
     }
