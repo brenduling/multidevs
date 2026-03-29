@@ -132,6 +132,9 @@
             <div id="dialogIcon" style="font-size: 40px; margin-bottom: 15px;">⚠️</div>
             <h3 id="dialogTitle" class="neon" style="margin: 0 0 10px 0; font-size: 20px;">System Alert</h3>
             <p id="dialogMessage" style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px; line-height: 1.5;"></p>
+            
+            <input type="text" id="dialogInput" style="display: none; width: 100%; margin-bottom: 20px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text); border-radius: 8px;">
+            
             <div id="dialogButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
         </div>
     </div>
@@ -143,7 +146,7 @@
                 <path d="M100 15L175 58V142L100 185L25 142V58L100 15Z" stroke="url(#neonGrad)" stroke-width="8" filter="url(#glow)"/>
                 <path d="M100 40V160" stroke="#FFF" stroke-width="12" stroke-linecap="round"/><path d="M100 40C145 40 155 70 155 100C155 130 145 160 100 160" stroke="url(#neonGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M70 100L45 75M70 100L45 125" stroke="#FFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><circle cx="45" cy="75" r="6" fill="#22D3EE"/><circle cx="45" cy="125" r="6" fill="#8B5CF6"/><circle cx="100" cy="100" r="8" fill="#FFF" filter="url(#glow)"/>
             </svg>
-            <h1 class="neon" style="margin:0; font-size: 34px;">DaDevs <span class="accent">0.2</span></h1>
+            <h1 class="neon" style="margin:0; font-size: 34px;">DaDevs <span class="accent">0.1</span></h1>
         </div>
         <p style="color:var(--text-muted); font-size:14px; margin-bottom:30px;">Enter the ecosystem.</p>
         
@@ -376,7 +379,7 @@
 
 <script>
     // --- PWA AUTO UPDATER & CACHE CLEAR ---
-    const APP_VERSION = "v2.4"; 
+    const APP_VERSION = "v2.5"; 
     async function checkForUpdates() {
         try {
             const res = await fetch(window.location.href, { cache: "no-store" });
@@ -640,11 +643,43 @@
         showModal('actionFormModal');
     }
 
+    // --- CUSTOM UI PROMPT IMPLEMENTATION ---
+    const customPrompt = (m, cb, placeholder="Type here...", t="Input Required", i="✏️") => { 
+        document.getElementById('dialogTitle').innerText=t; 
+        document.getElementById('dialogMessage').innerText=m; 
+        document.getElementById('dialogIcon').innerText=i; 
+        
+        const inp = document.getElementById('dialogInput');
+        inp.style.display='block'; 
+        inp.value=''; 
+        inp.placeholder=placeholder;
+        
+        document.getElementById('dialogButtons').innerHTML=`<button class="danger" onclick="closeDialog()">Cancel</button><button class="success" id="cbBtn">Submit</button>`; 
+        
+        document.getElementById('cbBtn').onclick=()=>{ 
+            const val = inp.value.trim(); 
+            if(val){ closeDialog(); cb(val); } 
+        }; 
+        
+        openDialog(); 
+        setTimeout(()=>inp.focus(), 50);
+    };
+
     // --- UI HELPERS ---
     const customAlert = (m, t="System Alert", i="⚠️") => { document.getElementById('dialogTitle').innerText=t; document.getElementById('dialogMessage').innerText=m; document.getElementById('dialogIcon').innerText=i; document.getElementById('dialogButtons').innerHTML=`<button class="success" onclick="closeDialog()">Acknowledge</button>`; openDialog(); };
     const customConfirm = (m, cb, t="Confirmation", i="❓") => { document.getElementById('dialogTitle').innerText=t; document.getElementById('dialogMessage').innerText=m; document.getElementById('dialogIcon').innerText=i; document.getElementById('dialogButtons').innerHTML=`<button class="danger" onclick="closeDialog()">Abort</button><button class="success" id="cbBtn">Proceed</button>`; document.getElementById('cbBtn').onclick=()=>{closeDialog();cb();}; openDialog(); };
     const openDialog = () => { const d = document.getElementById('customDialog'); d.style.display='flex'; setTimeout(()=>d.classList.add('active'),10); };
-    const closeDialog = () => { const d = document.getElementById('customDialog'); d.classList.remove('active'); setTimeout(()=>d.style.display='none',300); };
+    
+    // Updated closeDialog to hide input when closing
+    const closeDialog = () => { 
+        const d = document.getElementById('customDialog'); 
+        d.classList.remove('active'); 
+        setTimeout(() => { 
+            d.style.display='none'; 
+            if(document.getElementById('dialogInput')) document.getElementById('dialogInput').style.display='none';
+        }, 300); 
+    };
+    
     const showModal = (id) => { const m = document.getElementById(id); m.style.display='flex'; setTimeout(()=>m.classList.add('active'),10); };
     const hideModal = (id) => { const m = document.getElementById(id); m.classList.remove('active'); setTimeout(()=>m.style.display='none',300); };
     const showLoader = (show, text="Processing...") => { document.getElementById('loadingText').innerText=text; document.getElementById('loadingOverlay').style.display=show?'flex':'none'; };
@@ -830,7 +865,7 @@
     async function loadLobby() {
         currentModule = 'Lobby';
         currentWorkspace = null; isViewerMode = false; document.getElementById('viewToggleContainer').innerHTML = '';
-        document.getElementById('viewTitle').innerHTML = `DaDevs 0.2`; 
+        document.getElementById('viewTitle').innerHTML = `DaDevs 0.1`; 
         document.getElementById('moduleFab').style.display = 'none';
         
         try {
@@ -1830,7 +1865,16 @@
     async function approveWs(wsId) { showLoader(true, "Authorizing..."); try { const {error} = await db.from('workspaces').update({ status: 'active' }).eq('id', wsId); if(error) throw error; await loadSuperAdmin(); } catch(err) { customAlert("Authorization failed: " + err.message); showLoader(false); } }
     async function banUser(userId, username) { customConfirm(`Are you sure you want to permanently suspend @${username}?`, async () => { showLoader(true, "Suspending user..."); try { const {error} = await db.from('profiles').update({ status: 'banned' }).eq('id', userId); if(error) throw error; await loadSuperAdmin(); } catch(err) { customAlert("Suspension failed: " + err.message); showLoader(false); } }, "Confirm Ban", "🚫"); }
     async function unbanUser(userId) { showLoader(true, "Restoring access..."); try { const {error} = await db.from('profiles').update({ status: 'active' }).eq('id', userId); if(error) throw error; await loadSuperAdmin(); } catch(err) { customAlert("Restore failed: " + err.message); showLoader(false); } }
-    function warnUser(userId) { const msg = prompt("Enter official warning message:"); if (!msg) return; showLoader(true, "Transmitting Warning..."); db.from('profiles').update({ warning_message: msg }).eq('id', userId).then(({error}) => { showLoader(false); if (error) customAlert("Transmission failed: " + error.message); else { customAlert("Warning transmitted successfully.", "Success", "✅"); loadSuperAdmin(); } }); }
+    function warnUser(userId) { 
+        customPrompt("Enter official warning message:", (msg) => { 
+            showLoader(true, "Transmitting Warning..."); 
+            db.from('profiles').update({ warning_message: msg }).eq('id', userId).then(({error}) => { 
+                showLoader(false); 
+                if (error) customAlert("Transmission failed: " + error.message); 
+                else { customAlert("Warning transmitted successfully.", "Success", "✅"); loadSuperAdmin(); } 
+            }); 
+        }, "Warning message...", "Send Warning", "⚠️"); 
+    }
 
     window.onload = () => { checkSession(); };
 </script>
