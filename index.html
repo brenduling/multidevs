@@ -46,7 +46,6 @@
         #authScreen { padding: 40px 30px; text-align: center; width: 360px; max-width: 90%; z-index: 10; }
         #main { flex: 1; padding: 15px; padding-bottom: 90px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
         
-        /* Condensed Header Style */
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding: 10px 0 15px 0; position: sticky; top:0; background: linear-gradient(180deg, var(--bg-1) 85%, transparent); z-index:50;}
         .avatar-wrapper { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 2px solid var(--glass-border); display: flex; justify-content: center; align-items: center; flex-shrink: 0; background: var(--card-bg); position: relative;} .avatar-wrapper img { width: 100%; height: 100%; object-fit: cover; } .avatar-wrapper svg { width: 60%; height: 60%; color: var(--text-muted); opacity: 0.8; margin-top: 15%;}
         
@@ -58,7 +57,6 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 99999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;} .modal-overlay.active { opacity: 1; }
         .modal-content { background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: 16px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);} .modal-overlay.active .modal-content { transform: scale(1); }
         
-        /* Full screen structural override for the Profile Page */
         #userProfileModal .modal-content { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; border-radius: 0; border: none; padding: 0; background: var(--bg-1); overflow: hidden; display: flex; flex-direction: column; }
 
         .branding-text { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: lowercase; text-align: center; margin-top: 15px; }
@@ -80,7 +78,6 @@
 
         .pwd-toggle { position: absolute; right: 12px; top: 18px; cursor: pointer; font-size: 16px; opacity: 0.7; transition: 0.2s; } .pwd-toggle:hover { opacity: 1; }
 
-        /* Collapse Header */
         .collapse-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; margin-bottom: 10px; transition: 0.2s;}
         .collapse-header:hover { color: var(--secondary); }
         .fab-add { position: fixed; right: 24px; bottom: 92px; width: 58px; height: 58px; border-radius: 50%; z-index: 1400; display: none; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 18px 35px rgba(0,0,0,0.35); }
@@ -100,8 +97,6 @@
             .notif-dropdown { position: fixed; top: 60px; right: 10px; left: 10px; width: auto; }
             .admin-panel .flex-row { flex-direction: column; align-items: stretch; } .admin-panel .flex-row > * { width: 100%; margin-bottom: 5px; }
             .fab-add { right: 16px; bottom: 74px; }
-            
-            /* Override modal padding for mobile specific on regular modals */
             #profileSettingsModal .modal-content, #createWsModal .modal-content, #editWsModal .modal-content, #actionFormModal .modal-content, #searchModal .modal-content { padding: 20px; }
         }
 
@@ -128,7 +123,8 @@
         }
     </script>
 
-    <div id="updateOverlay"><div class="loader-spinner"></div><h2 class="neon" style="margin:0 0 10px 0;">System Update Required</h2><p style="color: var(--text-muted); font-size: 14px;">Applying latest architectural patches...</p></div>
+    <div id="updateOverlay"></div>
+
     <div id="loadingOverlay"><div class="loader-spinner"></div><div id="loadingText">Synchronizing...</div></div>
 
     <div id="customDialog" class="modal-overlay" style="z-index: 9999999;">
@@ -380,15 +376,21 @@
 
 <script>
     // --- PWA AUTO UPDATER & CACHE CLEAR ---
-    const APP_VERSION = "v2.3"; 
+    const APP_VERSION = "v2.4"; 
     async function checkForUpdates() {
         try {
             const res = await fetch(window.location.href, { cache: "no-store" });
             const text = await res.text();
             if (!text.includes(`const APP_VERSION = "${APP_VERSION}";`)) {
-                customConfirm("A new system patch is available. Update now to avoid sync issues?", () => {
-                    window.location.reload(true);
-                }, "System Update Required", "🔄");
+                document.getElementById('updateOverlay').style.display = 'flex';
+                document.getElementById('updateOverlay').innerHTML = `
+                    <div class="glass card" style="text-align:center; max-width: 320px; border-color: var(--secondary); background: var(--bg-1);">
+                        <div style="font-size: 40px; margin-bottom: 15px;">🚀</div>
+                        <h3 class="neon" style="margin: 0 0 10px 0;">Patch Available</h3>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">A new system update has been deployed. Please confirm to synchronize the latest architecture.</p>
+                        <button class="success" onclick="window.location.reload(true)">Confirm Update</button>
+                    </div>
+                `;
             }
         } catch(e) {}
     }
@@ -943,7 +945,7 @@
         }
 
         html += `<div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="accent" style="flex:1; margin:0;" onclick="showModal('createWsModal')">+ New Environment</button>
+            <button style="flex:1; margin:0;" onclick="showModal('createWsModal')">+ New Environment</button>
             ${userProfile.role==='superadmin'?`<button class="danger" style="flex:1; margin:0;" onclick="loadSuperAdmin()">👑 Terminal</button>`:''}
         </div>`;
         html += `</div>`;
