@@ -30,7 +30,7 @@
         .neon { color: var(--secondary); text-shadow: 0 0 8px var(--secondary); } body.light-theme .neon { text-shadow: none; font-weight: 900; }
         .accent { color: var(--accent); }
         
-        input, select, textarea { width: 100%; padding: 12px; margin: 6px 0; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); border-radius: 8px; outline: none; font-size: 13px; transition: 0.3s; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 6px 0; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); border-radius: 8px; box-sizing: border-box; outline: none; font-size: 13px; transition: 0.3s; }
         body.light-theme input, body.light-theme select, body.light-theme textarea { background: #fff; color: #000; border-color: #cbd5e1; }
         input:focus, select:focus, textarea:focus { border-color: var(--secondary); box-shadow: 0 0 8px rgba(34, 211, 238, 0.3); }
         input[type="file"] { padding: 9px 12px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
@@ -44,17 +44,23 @@
         
         #app { display: none; width: 100vw; height: 100dvh; flex-direction: column; position: relative; }
         #authScreen { padding: 40px 30px; text-align: center; width: 360px; max-width: 90%; z-index: 10; }
-        #main { flex: 1; padding: 15px; padding-bottom: 90px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; width: 100%; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; position: sticky; top:0; background: linear-gradient(180deg, var(--bg-1) 70%, transparent); z-index:50;}
+        #main { flex: 1; padding: 15px; padding-bottom: 90px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
         
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; width: 100%; } .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; width: 100%; }
+        /* Condensed Header Style */
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding: 10px 0 15px 0; position: sticky; top:0; background: linear-gradient(180deg, var(--bg-1) 85%, transparent); z-index:50;}
+        .avatar-wrapper { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 2px solid var(--glass-border); display: flex; justify-content: center; align-items: center; flex-shrink: 0; background: var(--card-bg); position: relative;} .avatar-wrapper img { width: 100%; height: 100%; object-fit: cover; } .avatar-wrapper svg { width: 60%; height: 60%; color: var(--text-muted); opacity: 0.8; margin-top: 15%;}
+        
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; } .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
         .card { padding: 20px; margin-bottom: 15px; transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .workspace-card { cursor: pointer; border-left: 4px solid var(--secondary); margin-bottom: 12px; background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, var(--card-bg) 100%); } .workspace-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-color: var(--accent); }
         body.light-theme .workspace-card { background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-color: #e2e8f0; border-left-color: var(--secondary); }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 99999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;} .modal-overlay.active { opacity: 1; }
-        .modal-content { background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: 16px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative;} .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-content { background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: 16px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);} .modal-overlay.active .modal-content { transform: scale(1); }
         
+        /* Full screen structural override for the Profile Page */
+        #userProfileModal .modal-content { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; border-radius: 0; border: none; padding: 0; background: var(--bg-1); overflow: hidden; display: flex; flex-direction: column; }
+
         .branding-text { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: lowercase; text-align: center; margin-top: 15px; }
         
         #bottomNav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 10px 20px; z-index: 1000; background: var(--nav-bg); backdrop-filter: blur(20px); border-radius: 40px; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); overflow-x: visible; width: max-content; max-width: 95vw;}
@@ -63,8 +69,6 @@
         .nav-item:hover, .nav-item.active { background: rgba(255, 255, 255, 0.1); color: var(--secondary); transform: translateY(-4px); } .nav-item:hover svg, .nav-item.active svg { transform: scale(1.1); filter: drop-shadow(0 0 8px var(--secondary)); } .nav-item:hover .nav-text, .nav-item.active .nav-text { display: block; }
         body.light-theme .nav-item.active { background: rgba(0,0,0,0.05); }
 
-        .avatar-wrapper { width: 45px; height: 45px; border-radius: 50%; overflow: hidden; border: 2px solid var(--glass-border); display: flex; justify-content: center; align-items: center; flex-shrink: 0; background: var(--card-bg); position: relative;} .avatar-wrapper img { width: 100%; height: 100%; object-fit: cover; } .avatar-wrapper svg { width: 60%; height: 60%; color: var(--text-muted); opacity: 0.8; margin-top: 15%;}
-        
         .theme-toggle { background: transparent; border: 1px solid var(--glass-border); width: auto; padding: 8px 16px; border-radius: 20px; font-size: 12px; color: var(--text); display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;}
         .theme-toggle:hover { background: rgba(255,255,255,0.1); transform: none; box-shadow: none; }
         
@@ -83,26 +87,22 @@
         .profile-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 15px; }
         .profile-detail { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; font-size: 12px; }
         .profile-detail strong { display: block; color: var(--secondary); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.4px; }
-        
-        /* Feed UI Components */
-        .feed-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 12px; margin-bottom: 15px; overflow: hidden; transition: transform 0.3s ease; }
-        .feed-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-color: var(--secondary); }
-        .feed-header { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .feed-img { width: 100%; max-height: 400px; display: flex; justify-content: center; background: #000; cursor: pointer; }
-        .feed-img img { width: 100%; height: auto; max-height: 400px; object-fit: contain; }
-        .feed-body { padding: 12px; font-size: 13px; color: var(--text); border-top: 1px solid rgba(255,255,255,0.05); }
-
         .pin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .tab-btn { width: auto; padding: 8px 12px; margin: 0; background: transparent; border: 1px solid var(--glass-border); color: var(--text); border-radius: 8px; font-size: 12px; font-weight: bold;}
+        .tab-btn.active { background: rgba(34,211,238,0.12); border-color: var(--secondary); color: var(--secondary); }
 
         @media (max-width: 768px) {
             .grid-2, .grid-3 { grid-template-columns: 1fr; }
-            .header-top { padding-bottom: 10px; margin-bottom: 10px; }
             #bottomNav { padding: 4px 2px; border-radius: 0; bottom: 0; width: 100%; max-width: 100%; border-left: none; border-right: none; border-bottom: none; justify-content: space-evenly; }
             .nav-item { padding: 6px 2px; min-width: 0; } .nav-item svg { width: 18px; height: 18px; }
             #main { padding: 10px; padding-bottom: 60px; } .modal-content { padding: 20px; }
             .notif-dropdown { position: fixed; top: 60px; right: 10px; left: 10px; width: auto; }
             .admin-panel .flex-row { flex-direction: column; align-items: stretch; } .admin-panel .flex-row > * { width: 100%; margin-bottom: 5px; }
             .fab-add { right: 16px; bottom: 74px; }
+            
+            /* Override modal padding for mobile specific on regular modals */
+            #profileSettingsModal .modal-content, #createWsModal .modal-content, #editWsModal .modal-content, #actionFormModal .modal-content, #searchModal .modal-content { padding: 20px; }
         }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index: 999999; display:none; justify-content:center; align-items:center; flex-direction: column; color: var(--secondary); font-weight:bold; backdrop-filter: blur(8px); }
@@ -184,10 +184,10 @@
     <div id="app">
         <div id="main">
             <div class="header-top">
-                <div style="display: flex; align-items: center; gap: 15px; cursor:pointer;" onclick="openProfileSettings()" title="View/Edit Profile">
-                    <div id="headerAvatar" class="avatar-wrapper" style="width: 42px; height: 42px; border-color: var(--secondary); box-shadow: 0 0 10px rgba(34,211,238,0.3);"></div>
+                <div style="display: flex; align-items: center; gap: 15px; cursor:pointer;" onclick="if(sessionUser) openWorkspaceUserModal(sessionUser.id)" title="View Profile">
+                    <div id="headerAvatar" class="avatar-wrapper" style="border-color: var(--secondary); box-shadow: 0 0 10px rgba(34,211,238,0.3);"></div>
                     <div>
-                        <h2 id="viewTitle" class="neon" style="margin:0; font-size: 24px; letter-spacing: 0.5px;">Lobby</h2>
+                        <h2 id="viewTitle" class="neon" style="margin:0; font-size: 18px; letter-spacing: 0.5px;">Lobby</h2>
                         <span class="branding-text" style="text-align: left; margin-top: 2px; display: block;">powered by brenduling</span>
                     </div>
                 </div>
@@ -201,7 +201,6 @@
                         </div>
                     </div>
                     <button class="success" style="width: auto; padding: 10px; margin: 0;" onclick="showModal('searchModal')">🔍 Find</button>
-                    <button class="danger" style="width: auto; padding: 10px; margin: 0;" onclick="confirmLogout()">Log Off</button>
                 </div>
             </div>
             <div id="contentArea"></div>
@@ -209,11 +208,17 @@
         <div id="bottomNav"></div>
     </div>
 
-    <div id="profileSettingsModal" class="modal-overlay">
+    <div id="profileSettingsModal" class="modal-overlay" style="z-index: 1000000;">
         <div class="modal-content">
             <button style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; width: auto; padding: 0; margin: 0; box-shadow: none; transform: none; transition: 0.2s; z-index: 10; cursor:pointer;" onclick="hideModal('profileSettingsModal')" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">✖</button>
             <h3 class="neon" style="margin-top: 0; margin-right: 30px;">Personalization & Setup</h3>
             
+            <div style="text-align: center; margin-bottom: 15px;">
+                <label style="font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics (Photo)
+                    <input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)">
+                </label>
+            </div>
+
             <div class="grid-2">
                 <div><label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Full Name</label><input id="p_fullname"></div>
                 <div><label style="font-size:11px; color:var(--text-muted); font-weight:bold;">Username (Login ID)</label><input id="p_username"></div>
@@ -262,12 +267,12 @@
     </div>
 
     <div id="userProfileModal" class="modal-overlay">
-        <div class="modal-content" id="userProfileModalContent" style="padding: 0; overflow: hidden;"></div>
+        <div class="modal-content" id="userProfileModalContent"></div>
     </div>
 
     <div id="createWsModal" class="modal-overlay">
         <div class="modal-content">
-            <h3 class="neon" style="margin-top: 0; font-size: 24px;">Provision Workspace</h3>
+            <h3 class="neon" style="margin-top: 0; font-size: 24px;">Provision Environment</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Maximum 10 per resident.</p>
             <input id="wsName" placeholder="Workspace Designation (Name)">
             
@@ -354,7 +359,7 @@
         <div id="lightboxCaption" style="color: #fff; margin-top: 15px; font-weight: bold; font-size: 16px;"></div>
     </div>
 
-    <div id="actionFormModal" class="modal-overlay">
+    <div id="actionFormModal" class="modal-overlay" style="z-index: 1000000;">
         <div class="modal-content" id="actionFormContent"></div>
     </div>
     <div id="superAdminPasswordModal" class="modal-overlay">
@@ -375,7 +380,7 @@
 
 <script>
     // --- PWA AUTO UPDATER & CACHE CLEAR ---
-    const APP_VERSION = "v2.1"; 
+    const APP_VERSION = "v2.3"; 
     async function checkForUpdates() {
         try {
             const res = await fetch(window.location.href, { cache: "no-store" });
@@ -420,7 +425,6 @@
     let isViewerMode = false; let currentLobbyView = 'Home';
     let personalLobbyItems = [];
     let profileDirectory = [];
-    let globalFeed = [];
     const availableFeatures = ['Dashboard', 'Gallery', 'Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links'];
     const modulesWithAddAction = new Set(['Sprint Board', 'Timeline', 'Funds', 'Calendar', 'Resources', 'Links', 'Gallery']);
     const PIN_STORAGE_KEY = 'dadevs_pinned_items_v2';
@@ -445,6 +449,7 @@
     function isPinned(module, itemId, workspaceId = currentWorkspace?.workspace_id) {
         return getMyPinnedItems().some(item => item.module === module && item.item_id === itemId && item.workspace_id === workspaceId);
     }
+    
     function togglePinItem(item) {
         if(!sessionUser) return;
         const pins = getPinnedItems();
@@ -452,21 +457,29 @@
         if(index >= 0) pins.splice(index, 1);
         else pins.unshift({ ...item, user_id: sessionUser.id, pinned_at: new Date().toISOString() });
         savePinnedItems(pins);
+        
+        // Dynamic UI Reaction fix
         if(document.getElementById('userProfileModal').style.display === 'flex') {
             const activeTarget = document.getElementById('userProfileModalContent').dataset.userId;
             if(activeTarget) openWorkspaceUserModal(activeTarget);
+        } else if (document.getElementById('actionFormModal').style.display === 'flex' && document.getElementById('actionFormContent').innerHTML.includes('Pinned Items')) {
+            showProfilePins();
         } else if(currentModule && currentModule !== 'Lobby') {
             renderModule(currentModule);
-        } else {
-            loadLobby();
+        } else if(currentModule === 'Lobby') {
+            renderLobbyUI(); 
+            switchLobbyView(currentLobbyView); // Prevent jumping to home tab
         }
     }
     window.togglePinEncoded = (encoded) => togglePinItem(JSON.parse(decodeURIComponent(encoded)));
+    
     function renderPinButton(item) {
         const pinned = isPinned(item.module, item.item_id, item.workspace_id);
-        const payload = encodeURIComponent(JSON.stringify(item));
+        // FIXED: Safe payload replacement preventing syntax errors on UI click
+        const payload = encodeURIComponent(JSON.stringify(item)).replace(/'/g, "%27");
         return `<button class="${pinned ? 'warning' : 'success'}" style="width:auto;padding:6px 10px;margin:0;" onclick="event.stopPropagation();togglePinEncoded('${payload}')">${pinned ? 'Unpin' : 'Pin'}</button>`;
     }
+    
     function renderModuleFab(mod) {
         const fab = document.getElementById('moduleFab');
         if(isAdmin() && modulesWithAddAction.has(mod)) fab.style.display = 'flex';
@@ -549,7 +562,35 @@
         if(window.__resolveSuperAdminPassword) window.__resolveSuperAdminPassword('');
         window.__resolveSuperAdminPassword = null;
     };
-
+    function renderPinnedSection(targetId) {
+        if(targetId !== sessionUser?.id) return '';
+        const pins = getMyPinnedItems();
+        return `
+            <div style="margin-top:15px; text-align:center;">
+                <button class="warning" style="width:auto;" onclick="showProfilePins()">Pinned (${pins.length})</button>
+            </div>
+        `;
+    }
+    function showProfilePins() {
+        const pins = getMyPinnedItems();
+        const content = pins.length ? pins.map(pin => {
+            const payload = encodeURIComponent(JSON.stringify(pin)).replace(/'/g, "%27");
+            return `
+            <div style="padding:12px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;">
+                <div>
+                    <div style="font-weight:bold;">${escapeHtml(pin.title || pin.caption || pin.item_id)}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(pin.workspace_name || 'Workspace')} • ${escapeHtml(pin.module)}</div>
+                </div>
+                <div class="pin-row">
+                    ${pin.url ? `<button class="success" style="width:auto;padding:6px 10px;margin:0;" onclick="window.open('${pin.url}','_blank')">Open</button>` : ''}
+                    <button class="danger" style="width:auto;padding:6px 10px;margin:0;" onclick="togglePinEncoded('${payload}')">Remove</button>
+                </div>
+            </div>
+            `;
+        }).join('') : `<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:0;">No pinned items yet.</p>`;
+        document.getElementById('actionFormContent').innerHTML = `<h3 class="neon" style="margin-top:0;">Pinned Items</h3><div style="display:flex;flex-direction:column;gap:10px; max-height:60vh; overflow-y:auto;">${content}</div><button class="danger" style="margin-top:15px;" onclick="hideModal('actionFormModal')">Close</button>`;
+        showModal('actionFormModal');
+    }
     async function ensureSuperAdminAccess() {
         if(userProfile?.role !== 'superadmin') return false;
         if(Date.now() < superAdminAccessUntil) return true;
@@ -568,6 +609,14 @@
             showLoader(false);
         }
     }
+
+    // Toggle Theme Globally
+    window.toggleAppTheme = () => {
+        const isLight = document.body.classList.toggle('light-theme');
+        document.documentElement.classList.toggle('light-theme');
+        localStorage.setItem('dadevs_theme', isLight ? 'light' : 'dark');
+    };
+
     function openActionForm(mod) {
         if(!modulesWithAddAction.has(mod) || !isAdmin()) return;
         const memOpts = wsMembersFull.map(m => `<option value="${m.profile.id}">${m.profile.full_name}</option>`).join('');
@@ -598,7 +647,6 @@
     const hideModal = (id) => { const m = document.getElementById(id); m.classList.remove('active'); setTimeout(()=>m.style.display='none',300); };
     const showLoader = (show, text="Processing...") => { document.getElementById('loadingText').innerText=text; document.getElementById('loadingOverlay').style.display=show?'flex':'none'; };
     
-    // Global Collapse Helper
     window.toggleCol = (id) => { const el = document.getElementById(id); el.style.display = el.style.display === 'none' ? 'block' : 'none'; };
 
     const toggleAuth = () => { const l=document.getElementById('formLogin'), r=document.getElementById('formRegister'); document.querySelectorAll('#authScreen input').forEach(i=>i.value=''); if(l.style.display!=='none'){l.style.display='none';r.style.display='block';}else{l.style.display='block';r.style.display='none';} };
@@ -613,7 +661,6 @@
     document.getElementById('p_color_sec').addEventListener('input', e => document.getElementById('p_color_sec_txt').value = e.target.value.toUpperCase());
     document.getElementById('p_color_acc').addEventListener('input', e => document.getElementById('p_color_acc_txt').value = e.target.value.toUpperCase());
     
-    // Reverse syncing hex input to color picker
     document.getElementById('p_color_sec_txt').addEventListener('input', e => { if(/^#[0-9A-F]{6}$/i.test(e.target.value)) document.getElementById('p_color_sec').value = e.target.value; });
     document.getElementById('p_color_acc_txt').addEventListener('input', e => { if(/^#[0-9A-F]{6}$/i.test(e.target.value)) document.getElementById('p_color_acc').value = e.target.value; });
 
@@ -727,7 +774,7 @@
 
     async function handleAvatarUpdate(input) {
         if(!input.files.length) return; showLoader(true, "Updating Biometrics...");
-        try { const url = await uploadToCloudinary(input.files[0]); const {error} = await db.from('profiles').update({ avatar_url: url }).eq('id', sessionUser.id); if(error) throw error; userProfile.avatar_url = url; renderHeaderAvatar(url); loadLobby(); customAlert("Photo updated.", "Success", "✅"); } 
+        try { const url = await uploadToCloudinary(input.files[0]); const {error} = await db.from('profiles').update({ avatar_url: url }).eq('id', sessionUser.id); if(error) throw error; userProfile.avatar_url = url; renderHeaderAvatar(url); customAlert("Photo updated.", "Success", "✅"); } 
         catch(err) { customAlert(err.message); } finally { showLoader(false); input.value = ""; }
     }
 
@@ -777,11 +824,11 @@
         } catch(e) { customAlert(e.message); } finally { showLoader(false); }
     }
 
-    // --- LOBBY VIEW (UPDATED WITH SYSTEM NAV) ---
+    // --- LOBBY VIEW ---
     async function loadLobby() {
         currentModule = 'Lobby';
         currentWorkspace = null; isViewerMode = false; document.getElementById('viewToggleContainer').innerHTML = '';
-        document.getElementById('viewTitle').innerHTML = `@${userProfile.username}`; 
+        document.getElementById('viewTitle').innerHTML = `DaDevs 0.2`; 
         document.getElementById('moduleFab').style.display = 'none';
         
         try {
@@ -797,14 +844,6 @@
             profileDirectory = profilesData || [];
             await loadPersonalLobbyItems();
 
-            // Fetch Newsfeed (Gallery images from active workspaces)
-            globalFeed = [];
-            if(myWorkspaces.length > 0) {
-                const wsIds = myWorkspaces.map(w => w.workspace_id);
-                const { data: feedData, error: feedErr } = await db.from('gallery').select('*').in('workspace_id', wsIds).order('id', { ascending: false }).limit(50);
-                if(!feedErr && feedData) globalFeed = feedData;
-            }
-
             renderLobbyUI();
             switchLobbyView(currentLobbyView || 'Home'); 
             populateFeatureCheckboxes('featureList');
@@ -814,7 +853,7 @@
     function renderLobbyNav(activeTab) {
         const bn = document.getElementById('bottomNav');
         bn.innerHTML = `
-            <div class="nav-item ${activeTab==='Home'?'active':''}" onclick="switchLobbyView('Home')">${svgs['Lobby']||'🏠'}<span class="nav-text">Home</span></div>
+            <div class="nav-item ${activeTab==='Home'?'active':''}" onclick="switchLobbyView('Home')">${svgs['Lobby']||'🏠'}<span class="nav-text">Pulse</span></div>
             <div class="nav-item ${activeTab==='Workspaces'?'active':''}" onclick="switchLobbyView('Workspaces')">📁<span class="nav-text">Envs</span></div>
             <div class="nav-item ${activeTab==='Pinned'?'active':''}" onclick="switchLobbyView('Pinned')">📌<span class="nav-text">Pinned</span></div>
             <div class="nav-item ${activeTab==='Tasks'?'active':''}" onclick="switchLobbyView('Tasks')">${svgs['Sprint Board']||'⏳'}<span class="nav-text">Tasks</span></div>
@@ -842,6 +881,12 @@
         });
         const unfinishedTasks = personalTasks.filter(item => Number(item.progress || 0) < 100);
         
+        const taskGroups = [
+            { id: 'ptmUpcoming', label: 'Upcoming Schedules', items: upcomingTasks, active: true, empty: 'No upcoming schedules.' },
+            { id: 'ptmUnfinished', label: 'Unfinished Task', items: unfinishedTasks, active: false, empty: 'No unfinished task.' },
+            { id: 'ptmFinished', label: 'Finished Task', items: finishedTasks, active: false, empty: 'No finished task yet.' }
+        ];
+        
         const renderPersonalTaskCard = (item) => `
             <div onclick="enterWorkspace('${item.workspace_id}')" style="padding:12px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;">
                 <div>
@@ -853,47 +898,58 @@
                 </div>
             </div>
         `;
+        
+        const personalItemsHtml = taskGroups.map(group => `
+            <div id="${group.id}" style="display:${group.active ? 'flex' : 'none'};flex-direction:column;gap:10px;">
+                ${group.items.length ? group.items.map(renderPersonalTaskCard).join('') : `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin:25px 0;">${group.empty}</p>`}
+            </div>
+        `).join('');
+        
+        const taskNavHtml = `
+            <div class="tab-row" style="margin:12px 0 0 0;">
+                ${taskGroups.map(group => `<button class="tab-btn ${group.active ? 'active' : ''}" onclick="switchPersonalTaskTab('${group.id}', this)">${group.label} (${group.items.length})</button>`).join('')}
+            </div>
+        `;
 
-        let html = `<div class="grid-2" style="align-items: start;">`; 
+        let html = `<div style="display:flex;flex-direction:column;">`; 
 
-        // --- LEFT COLUMN: Identification ---
-        html += `<div class="glass card" style="text-align:center; position:relative;"><h3 class="neon" style="margin-top:0;font-size:24px;">Identification</h3>`;
-        html += `<button class="icon-btn" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:var(--text); font-size:18px; padding:0; width:auto; transform:none; box-shadow:none;" onclick="openProfileSettings()" title="Settings">⚙️</button>`;
-        html += `<div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;"><div style="position:relative;"><div class="avatar-wrapper" style="width:90px;height:90px;border-color:var(--secondary);">${userProfile.avatar_url ? `<img src="${userProfile.avatar_url}">` : svgs["User"]}</div><div style="position:absolute; bottom:-5px; right:-5px; font-size:24px; background:var(--bg-1); border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; border:2px solid var(--glass-border);">${userProfile.sticker||'👤'}</div></div><label style="margin-top:16px;font-size:11px;color:var(--secondary);cursor:pointer;padding:6px 12px;border:1px dashed var(--glass-border);border-radius:6px;">Update Biometrics<input type="file" accept="image/*" style="display:none;" onchange="handleAvatarUpdate(this)"></label></div><div style="background:var(--card-bg);padding:15px;border-radius:12px;border:1px solid var(--glass-border);width:100%;box-sizing:border-box;"><div style="font-size:18px;font-weight:bold;">${userProfile.full_name}</div><div style="font-size:14px;color:var(--secondary);margin-top:6px;">@${userProfile.username}</div>${userProfile.bio?`<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-style:italic;">"${userProfile.bio}"</div>`:''}<div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-transform:uppercase;font-weight:bold;">Access: ${userProfile.role}</div></div><div style="display:flex;gap:10px;margin-top:20px;width:100%;"><button onclick="showModal('createWsModal')" style="flex:1;">+ Provision Workspace</button></div>${userProfile.role==='superadmin'?`<button class="success" style="margin-top:10px;" onclick="loadSuperAdmin()">👑 Super Admin Command</button>`:''}</div>`;
-
-        // --- RIGHT COLUMN: Content Views (Toggled by Bottom Nav) ---
-        html += `<div class="glass card" style="display:flex;flex-direction:column; padding: 15px;">`;
-
-        // TAB: HOME (Newsfeed)
-        html += `<div id="tabHome" class="lobby-tab" style="display:none; max-height: 60vh; overflow-y:auto; padding-right:5px;">
-                    <h3 class="neon" style="margin-top:0;">Ecosystem Feed</h3>`;
-        if(globalFeed.length === 0) {
-            html += `<p style="color:var(--text-muted); text-align:center; font-size:13px; margin-top:20px;">No recent visual activity in your environments.</p>`;
-        } else {
-            globalFeed.forEach(item => {
-                const ws = myWorkspaces.find(w => w.workspace_id === item.workspace_id);
-                const wsName = ws?.workspaces.name || 'Unknown Environment';
-                const wsAv = ws?.workspaces.photo_url ? `<img src="${ws.workspaces.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `📁`;
-                
-                html += `
-                <div class="feed-card">
-                    <div class="feed-header" style="cursor:pointer;" onclick="enterWorkspace('${item.workspace_id}')">
-                        <div class="avatar-wrapper" style="width:36px; height:36px; border-color:var(--secondary); font-size:16px; background:rgba(34,211,238,0.1); display:flex; justify-content:center; align-items:center;">${wsAv}</div>
-                        <div style="font-weight:bold; font-size:15px; color:var(--text);">${wsName}</div>
+        // TAB: HOME (System Pulse / Command Center)
+        const nextTask = upcomingTasks.length ? upcomingTasks.sort((a,b) => new Date(a.date) - new Date(b.date))[0] : null;
+        html += `<div id="tabHome" class="lobby-tab" style="display:none; max-height: 70vh; overflow-y:auto; padding-right:5px;">
+            <div class="glass card" style="background: linear-gradient(145deg, rgba(255,255,255,0.05), var(--card-bg)); border-color: var(--secondary);">
+                <h3 class="neon" style="margin-top:0;">System Pulse</h3>
+                <div class="grid-3" style="margin-top: 15px;">
+                    <div style="padding:15px; background:rgba(0,0,0,0.3); border-radius:8px; text-align:center;">
+                        <div style="font-size:24px; font-weight:bold; color:var(--secondary);">${myWorkspaces.length}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">Active Envs</div>
                     </div>
-                    <div class="feed-img" onclick="openLightbox('${item.url}','${escapeHtml(item.caption)}')">
-                        <img src="${item.url}" loading="lazy">
+                    <div style="padding:15px; background:rgba(0,0,0,0.3); border-radius:8px; text-align:center;">
+                        <div style="font-size:24px; font-weight:bold; color:var(--warning);">${unfinishedTasks.length}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">Pending Tasks</div>
                     </div>
-                    <div class="feed-body">
-                        <span style="color:var(--secondary); font-weight:bold;">${wsName}:</span> ${escapeHtml(item.caption)}
+                    <div style="padding:15px; background:rgba(0,0,0,0.3); border-radius:8px; text-align:center;">
+                        <div style="font-size:24px; font-weight:bold; color:var(--success);">${finishedTasks.length}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">Completed</div>
                     </div>
-                </div>`;
-            });
+                </div>
+            </div>`;
+
+        if(nextTask) {
+            html += `<div class="glass card" style="border-left: 4px solid var(--accent); cursor:pointer;" onclick="enterWorkspace('${nextTask.workspace_id}')">
+                <h4 style="margin:0 0 10px 0; color:var(--text-muted); font-size:11px; text-transform:uppercase;">Priority Target</h4>
+                <div style="font-size:16px; font-weight:bold;">${escapeHtml(nextTask.title)}</div>
+                <div style="font-size:12px; color:var(--secondary); margin-top:4px;">${escapeHtml(nextTask.workspace_name)} • Target Date: ${escapeHtml(nextTask.date)}</div>
+            </div>`;
         }
+
+        html += `<div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="accent" style="flex:1; margin:0;" onclick="showModal('createWsModal')">+ New Environment</button>
+            ${userProfile.role==='superadmin'?`<button class="danger" style="flex:1; margin:0;" onclick="loadSuperAdmin()">👑 Terminal</button>`:''}
+        </div>`;
         html += `</div>`;
 
         // TAB: WORKSPACES
-        html += `<div id="tabWorkspaces" class="lobby-tab" style="display:none; max-height:60vh; overflow-y:auto; padding-right:5px;">
+        html += `<div id="tabWorkspaces" class="lobby-tab" style="display:none; max-height:70vh; overflow-y:auto; padding-right:5px;">
                     <h3 class="neon" style="margin-top:0;">Active Environments <span style="font-size:12px;color:var(--text-muted);background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:10px;">${myWorkspaces.length}/10</span></h3>`;
         if(!myWorkspaces.length) html += `<p style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:20px;">No environments detected.</p>`;
         else myWorkspaces.forEach(ws => {
@@ -905,13 +961,15 @@
         html += `</div>`;
 
         // TAB: PINNED
-        html += `<div id="tabPinned" class="lobby-tab" style="display:none; max-height:60vh; overflow-y:auto; padding-right:5px;">
+        html += `<div id="tabPinned" class="lobby-tab" style="display:none; max-height:70vh; overflow-y:auto; padding-right:5px;">
                     <h3 class="neon" style="margin-top:0;">Pinned Intel</h3>`;
         const pins = getMyPinnedItems();
         if(pins.length === 0) {
             html += `<p style="color:var(--text-muted); text-align:center; font-size:13px; margin-top:20px;">No pinned items yet.</p>`;
         } else {
-            html += pins.map(pin => `
+            html += pins.map(pin => {
+                const payload = encodeURIComponent(JSON.stringify(pin)).replace(/'/g, "%27");
+                return `
                 <div style="padding:12px;background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px;">
                     <div>
                         <div style="font-weight:bold;">${escapeHtml(pin.title || pin.caption || pin.item_id)}</div>
@@ -919,39 +977,33 @@
                     </div>
                     <div class="pin-row">
                         ${pin.url ? `<button class="success" style="width:auto;padding:6px 10px;margin:0;" onclick="window.open('${pin.url}','_blank')">Open</button>` : ''}
-                        <button class="danger" style="width:auto;padding:6px 10px;margin:0;" onclick="togglePinEncoded('${encodeURIComponent(JSON.stringify(pin))}')">Remove</button>
+                        <button class="danger" style="width:auto;padding:6px 10px;margin:0;" onclick="togglePinEncoded('${payload}')">Remove</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
         html += `</div>`;
 
         // TAB: TASKS
-        html += `<div id="tabTasks" class="lobby-tab" style="display:none; max-height:60vh; overflow-y:auto; padding-right:5px;">
-                    <h3 class="neon" style="margin-top:0;">Personal Task Manager</h3>
-                    
-                    <div class="collapse-header" onclick="toggleCol('ptmUnf')" style="margin-top:15px;"><h4 style="margin:0;color:var(--warning);">⏳ Unfinished Tasks (${unfinishedTasks.length})</h4><span>▼</span></div>
-                    <div id="ptmUnf">
-                        ${!unfinishedTasks.length ? `<p style="font-size:12px;color:var(--text-muted);">None pending.</p>` : unfinishedTasks.map(renderPersonalTaskCard).join('')}
-                    </div>
-
-                    <div class="collapse-header" onclick="toggleCol('ptmUp')" style="margin-top:15px;"><h4 style="margin:0;color:var(--secondary);">📅 Upcoming Schedules (${upcomingTasks.length})</h4><span>▼</span></div>
-                    <div id="ptmUp">
-                        ${!upcomingTasks.length ? `<p style="font-size:12px;color:var(--text-muted);">Nothing upcoming.</p>` : upcomingTasks.map(renderPersonalTaskCard).join('')}
-                    </div>
-
-                    <div class="collapse-header" onclick="toggleCol('ptmFin')" style="margin-top:15px;"><h4 style="margin:0;color:var(--success);">✅ Finished Tasks (${finishedTasks.length})</h4><span>▼</span></div>
-                    <div id="ptmFin" style="display:none;">
-                        ${!finishedTasks.length ? `<p style="font-size:12px;color:var(--text-muted);">No completed tasks yet.</p>` : finishedTasks.map(renderPersonalTaskCard).join('')}
-                    </div>
+        html += `<div id="tabTasks" class="lobby-tab" style="display:none; max-height:70vh; overflow-y:auto; padding-right:5px;">
+                    <h3 class="neon" style="margin:0;">Task Manager</h3>
+                    ${taskNavHtml}
+                    <div id="personalItems" style="margin-top:15px;">${personalItemsHtml}</div>
                 </div>`;
 
-        html += `</div></div>`; // Close right column & grid
+        html += `</div>`; 
         document.getElementById('contentArea').innerHTML = html;
     }
 
+    window.switchPersonalTaskTab = (targetId, btn) => {
+        ['ptmUpcoming', 'ptmUnfinished', 'ptmFinished'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = id === targetId ? 'flex' : 'none';
+        });
+        btn.closest('.tab-row').querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
+        btn.classList.add('active');
+    };
 
-    // Updated toggle logic to hide/show Fund Settings
     window.handleFeatureToggle = (cb) => {
         limitFeatures(cb);
         const modalContent = cb.closest('.modal-content');
@@ -983,7 +1035,6 @@
             const {error: memErr} = await db.from('workspace_members').insert([{ workspace_id: id, user_id: sessionUser.id, role: 'admin', status: 'active', display_role: 'Creator' }]);
             if(memErr) throw memErr;
             
-            // Global Broadcast
             const {data: allP} = await db.from('profiles').select('id');
             const msg = `<span style="cursor:pointer; color:var(--secondary); font-weight:bold;" onclick="showModal('searchModal'); document.getElementById('searchInput').value='${n}'; executeSearch();">🚀 @${userProfile.username} launched env: ${n}</span>`;
             if(allP) { allP.forEach(p => { if(p.id !== sessionUser.id) pushNotif(p.id, msg); }); }
@@ -1003,7 +1054,6 @@
     const buildNav = (l,i) => `<div class="nav-item ${l===currentModule?'active':''}" onclick="renderModule('${l}')">${svgs[i]||'⚡'}<span class="nav-text">${l}</span></div>`;
     const fetchWSData = async (table) => { const {data,error} = await db.from(table).select('*').eq('workspace_id', currentWorkspace.workspace_id); if(error) throw error; return data||[]; };
     
-    // View As Viewer Override
     const isAdmin = () => {
         if (isViewerMode) return false;
         return currentWorkspace && (currentWorkspace.role === 'admin' || userProfile.role === 'superadmin');
@@ -1015,7 +1065,6 @@
         currentWorkspace = myWorkspaces.find(w=>w.workspace_id===wsId);
         if(!currentWorkspace) return; 
         
-        // ADDED WORKSPACE ID IN HEADER
         document.getElementById('viewTitle').innerHTML = `
             ${escapeHtml(currentWorkspace.workspaces.name)}
             <div style="font-size:10px; color:var(--text-muted); font-weight:normal; font-family:monospace; margin-top:2px; letter-spacing:1px;">
@@ -1038,7 +1087,6 @@
         } catch(e) { customAlert(e.message); } finally { showLoader(false); }
     }
 
-    // New: Allow Super Admin to enter any workspace from the registry
     window.enterWorkspaceAsSuperAdmin = async (wsId) => {
         if(!(await ensureSuperAdminAccess())) return;
         showLoader(true, "Bypassing Security...");
@@ -1047,7 +1095,6 @@
             if(wErr) throw wErr;
             if(!wData) throw new Error("Workspace not found.");
             
-            // Construct a fake membership for the super admin
             currentWorkspace = {
                 workspace_id: wsId,
                 role: 'admin',
@@ -1082,7 +1129,6 @@
         const c = document.getElementById('contentArea'); c.innerHTML = '';
         renderModuleFab(mod);
         
-        // Viewer Toggle Header
         const vt = document.getElementById('viewToggleContainer');
         if (currentWorkspace.role === 'admin' || userProfile.role === 'superadmin') {
             vt.innerHTML = `<button class="icon-btn" onclick="toggleViewerMode()" style="background:transparent; border:1px solid var(--glass-border); color:var(--text); padding:6px 12px; border-radius:6px; font-size:11px; width:auto; margin:0; transition:0.2s;">${isViewerMode ? '👨‍💻 Return to Admin' : '👁️ View as Viewer'}</button>`;
@@ -1112,7 +1158,6 @@
         const cbs = document.getElementById('editWsModal').querySelectorAll('.ws-feature-cb');
         cbs.forEach(cb => { if(currentWorkspace.workspaces.features.includes(cb.value)) cb.checked = true; });
         
-        // Check initial state for funds UI
         if(document.getElementById('editFundSettings')) {
             document.getElementById('editFundSettings').style.display = currentWorkspace.workspaces.features.includes('Funds') ? 'block' : 'none';
         }
@@ -1156,7 +1201,7 @@
         });
     }
 
-    // --- DOSSIER (MEMBER MODAL FOR WORKSPACE AND GLOBAL) ---
+    // --- DOSSIER (FULL SCREEN MEMBER MODAL) ---
     async function openWorkspaceUserModal(targetId) {
         hideModal('searchModal');
         showLoader(true, "Loading Dossier...");
@@ -1180,32 +1225,29 @@
             const av = prof.avatar_url ? `<img src="${prof.avatar_url}">` : svgs["User"];
             const sticker = prof.sticker || '👤';
             
+            const detailCards = getProfileContactDetails(prof).map(detail => `<div class="profile-detail"><strong>${detail.label}</strong>${detail.value}</div>`).join('');
+            
             let html = `
-                <div style="display:flex; justify-content:flex-start; margin-bottom: 10px;">
-                    <button style="background:transparent; border:none; color:var(--text-muted); width:auto; padding:0; font-size:14px; display:flex; align-items:center; gap:5px;" onclick="hideModal('userProfileModal'); showModal('searchModal');">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                        Back to Search
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 15px 20px; border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; background: var(--nav-bg); z-index: 10; backdrop-filter: blur(10px);">
+                    <button style="background:transparent; border:none; color:var(--text); width:auto; padding:0; font-size:14px; display:flex; align-items:center; gap:5px;" onclick="hideModal('userProfileModal');">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     </button>
+                    <div style="font-weight:bold; font-size:16px;">Resident Profile</div>
+                    <div style="width:24px;"></div>
                 </div>
-                <button style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; width: auto; padding: 0; margin: 0; box-shadow: none; transform: none; transition: 0.2s; z-index: 10; cursor:pointer;" onclick="hideModal('userProfileModal')" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">✖</button>
-                
-                <div style="text-align:center; padding: 10px 0 20px 0; border-bottom: 1px solid var(--glass-border);">
-                    <div style="position:relative; display:inline-block; margin-bottom:15px;">
-                        <div class="avatar-wrapper" style="width:80px; height:80px; border-color:var(--secondary);">${av}</div>
-                        <div style="position:absolute; bottom:-5px; right:-5px; font-size:20px; background:var(--bg-1); border-radius:50%; border:2px solid var(--glass-border); width:28px; height:28px; display:flex; justify-content:center; align-items:center;">${sticker}</div>
+                <div style="padding: 20px; padding-bottom: 100px; overflow-y: auto; flex: 1;">
+                    <div style="text-align:center; padding: 10px 0 20px 0; border-bottom: 1px solid var(--glass-border);">
+                        <div style="position:relative; display:inline-block; margin-bottom:15px;">
+                            <div class="avatar-wrapper" style="width:80px; height:80px; border-color:var(--secondary);">${av}</div>
+                            <div style="position:absolute; bottom:-5px; right:-5px; font-size:20px; background:var(--bg-1); border-radius:50%; border:2px solid var(--glass-border); width:28px; height:28px; display:flex; justify-content:center; align-items:center;">${sticker}</div>
+                        </div>
+                        <h2 style="margin:0; font-size:22px; color:var(--text);">${prof.full_name}</h2>
+                        <div style="color:var(--secondary); font-size:14px; margin-top:4px;">@${prof.username}</div>
+                        ${wsRoleObj ? `<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight:bold;">${wsRoleObj.display_role} <span style="font-weight:normal;">(${wsRoleObj.role})</span></div>` : ''}
+                        ${prof.bio ? `<p style="font-size:12px; color:var(--text-muted); font-style:italic; margin:15px 0 0 0;">"${prof.bio}"</p>` : ''}
+                        <div class="profile-detail-grid">${detailCards}</div>
+                        ${renderPinnedSection(targetId)}
                     </div>
-                    <h2 style="margin:0; font-size:22px; color:var(--text);">${prof.full_name}</h2>
-                    <div style="color:var(--secondary); font-size:14px; margin-top:4px;">@${prof.username}</div>
-                    ${wsRoleObj ? `<div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight:bold;">${wsRoleObj.display_role} <span style="font-weight:normal;">(${wsRoleObj.role})</span></div>` : ''}
-                    ${prof.bio ? `<p style="font-size:12px; color:var(--text-muted); font-style:italic; margin:15px 0 0 0;">"${prof.bio}"</p>` : ''}
-                    
-                    <div style="display:flex; justify-content:center; gap:10px; margin-top:15px;">
-                        ${prof.contact_email ? `<a href="mailto:${prof.contact_email}" style="font-size:18px; text-decoration:none;" title="Email">✉️</a>` : ''}
-                        ${prof.messenger ? `<a href="${prof.messenger}" target="_blank" style="font-size:18px; text-decoration:none;" title="Messenger">💬</a>` : ''}
-                        ${prof.github ? `<a href="${prof.github}" target="_blank" style="font-size:18px; text-decoration:none;" title="GitHub">🐙</a>` : ''}
-                        ${prof.phone ? `<a href="tel:${prof.phone}" style="font-size:18px; text-decoration:none;" title="Call">📞</a>` : ''}
-                    </div>
-                </div>
             `;
 
             if (currentWorkspace && wsRoleObj) {
@@ -1219,41 +1261,41 @@
                 const mFunds = fList.reduce((a, b) => a + Number(b.amount), 0);
 
                 html += `
-                <div style="padding: 20px 0;">
-                    <div style="background:var(--card-bg); padding:15px; border-radius:8px; border:1px solid var(--glass-border); margin-bottom: 15px;">
-                        <h4 style="margin:0 0 10px 0; color:var(--accent);">Environment Stats</h4>
-                        <div style="display:flex; justify-content:space-around; font-size:14px;">
-                            <div style="text-align:center;"><div style="color:var(--text-muted); font-size:11px;">Contributions</div><strong>₱${mFunds.toLocaleString()}</strong></div>
-                            <div style="text-align:center;"><div style="color:var(--text-muted); font-size:11px;">Tasks Done</div><strong>${mDone}/${tList.length}</strong></div>
+                    <div style="padding: 20px 0;">
+                        <div style="background:var(--card-bg); padding:15px; border-radius:8px; border:1px solid var(--glass-border); margin-bottom: 15px;">
+                            <h4 style="margin:0 0 10px 0; color:var(--accent);">Environment Stats</h4>
+                            <div style="display:flex; justify-content:space-around; font-size:14px;">
+                                <div style="text-align:center;"><div style="color:var(--text-muted); font-size:11px;">Contributions</div><strong>₱${mFunds.toLocaleString()}</strong></div>
+                                <div style="text-align:center;"><div style="color:var(--text-muted); font-size:11px;">Tasks Done</div><strong>${mDone}/${tList.length}</strong></div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div style="background:var(--card-bg); padding:15px; border-radius:8px; border:1px solid var(--glass-border);">
-                        <div class="collapse-header" onclick="toggleCol('dossierTasks')"><h4 style="margin:0; color:var(--accent);">Assigned Tasks</h4><span>▼</span></div>
-                        <div id="dossierTasks" style="max-height:200px; overflow-y:auto; padding-right:5px; margin-top:10px;">`;
+                        
+                        <div style="background:var(--card-bg); padding:15px; border-radius:8px; border:1px solid var(--glass-border);">
+                            <div class="collapse-header" onclick="toggleCol('dossierTasks')"><h4 style="margin:0; color:var(--accent);">Assigned Tasks</h4><span>▼</span></div>
+                            <div id="dossierTasks" style="max-height:200px; overflow-y:auto; padding-right:5px; margin-top:10px;">`;
                 
                 if (!tList.length) html += `<p style="font-size:12px; color:var(--text-muted); margin:0; text-align:center;">No tasks assigned.</p>`;
                 else {
                     tList.sort((a,b) => new Date(a.sched_date) - new Date(b.sched_date)).forEach(t => {
                         const isDone = t.progress === 100;
                         html += `
-                            <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding:8px 0; display:flex; justify-content:space-between; align-items: center;">
-                                <div style="font-size:13px; font-weight:bold;">${t.title}<br><span style="font-size:10px; color:var(--text-muted); font-weight:normal;">Target: ${t.sched_date || '--'}</span></div>
-                                <div style="font-size:12px; font-weight:bold; color:${isDone ? 'var(--success)' : 'var(--warning)'};">${t.progress}%</div>
-                            </div>`;
+                                <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding:8px 0; display:flex; justify-content:space-between; align-items: center;">
+                                    <div style="font-size:13px; font-weight:bold;">${t.title}<br><span style="font-size:10px; color:var(--text-muted); font-weight:normal;">Target: ${t.sched_date || '--'}</span></div>
+                                    <div style="font-size:12px; font-weight:bold; color:${isDone ? 'var(--success)' : 'var(--warning)'};">${t.progress}%</div>
+                                </div>`;
                     });
                 }
                 html += `</div></div></div>`;
             } else {
                 html += `
-                <div style="padding: 20px 0;">
-                    <div class="collapse-header" onclick="toggleCol('dossierPubEnv')"><h4 style="margin:0; color:var(--accent);">Active Environments</h4><span>▼</span></div>
-                    <div id="dossierPubEnv" style="max-height: 150px; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:8px; margin-top:10px;">`;
+                    <div style="padding: 20px 0;">
+                        <div class="collapse-header" onclick="toggleCol('dossierPubEnv')"><h4 style="margin:0; color:var(--accent);">Active Environments</h4><span>▼</span></div>
+                        <div id="dossierPubEnv" style="max-height: 150px; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:8px; margin-top:10px;">`;
                 if(!targetWs.length) html += `<div style="font-size:12px; color:var(--text-muted); text-align:center;">No public affiliations.</div>`;
                 else {
                     targetWs.forEach(w => {
                         const wAv = w.photo_url ? `<img src="${w.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `📁`;
-                        html += `<div style="display:flex; align-items:center; gap:10px; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--glass-border);"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center; font-size:16px;">${wAv}</div><span style="font-size:14px; font-weight:bold;">${w.name}</span></div>`;
+                        html += `<div style="display:flex; align-items:center; gap:10px; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--glass-border);"><div style="width:30px; height:30px; border-radius:6px; overflow:hidden; background:rgba(34,211,238,0.1); color:var(--secondary); display:flex; justify-content:center; align-items:center; font-size:16px;">${wAv}</div><div><div style="font-size:14px; font-weight:bold;">${w.name}</div><div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Visible only as profile info. Workspace entry is disabled here.</div></div></div>`;
                     });
                 }
                 html += `</div></div>`;
@@ -1280,10 +1322,47 @@
                 html += `   </select>
                             <button class="success" style="margin:0;" onclick="sendSpecificInvite('${targetId}')">Send Invite</button>
                          </div>`;
-            } else if (targetId === sessionUser.id && !currentWorkspace) {
-                html += `<div style="text-align:center; padding-top:10px;"><button style="background:transparent; border:1px solid var(--glass-border); color:var(--text);" onclick="openProfileSettings()">⚙️ Edit My Profile</button></div>`;
+            } 
+            
+            if (targetId === sessionUser.id && !currentWorkspace) {
+                html += `
+                <div style="margin-top: 25px;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">System Configurations</h4>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <button style="background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px;" onclick="openProfileSettings()">
+                            <span>⚙️ Edit Profile Data</span>
+                            <span style="color:var(--secondary);">➔</span>
+                        </button>
+                        <button style="background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px;" onclick="toggleAppTheme()">
+                            <span>🌗 Toggle Theme (Dark/Light)</span>
+                            <span style="color:var(--secondary);">➔</span>
+                        </button>
+                        <button style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); padding: 15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px;" onclick="confirmLogout()">
+                            <span>🛑 Log Off Ecosystem</span>
+                            <span style="color:var(--danger);">➔</span>
+                        </button>
+                    </div>
+                </div>`;
+            } else if (targetId === sessionUser.id) {
+                html += `
+                <div style="margin-top: 25px;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--secondary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">System Configurations</h4>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <button style="background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px;" onclick="openProfileSettings()">
+                            <span>⚙️ Edit Profile Data</span>
+                            <span style="color:var(--secondary);">➔</span>
+                        </button>
+                        <button style="background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px;" onclick="toggleAppTheme()">
+                            <span>🌗 Toggle Theme (Dark/Light)</span>
+                            <span style="color:var(--secondary);">➔</span>
+                        </button>
+                    </div>
+                </div>`;
             }
 
+            html += `</div>`; // End of scrolling content div
+            
+            document.getElementById('userProfileModalContent').dataset.userId = targetId;
             document.getElementById('userProfileModalContent').innerHTML = html;
             showModal('userProfileModal');
         } catch(e) {
